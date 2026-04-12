@@ -6,6 +6,7 @@ const compression = require('compression');
 
 const config = require('./config');
 const routes = require('./routes');
+const logger = require('./utils/logger');
 const { notFoundHandler, globalErrorHandler } = require('./middleware/errorHandler');
 
 /**
@@ -31,9 +32,9 @@ const createApp = () => {
   // ─── Compression ───────────────────────────────────
   app.use(compression());
 
-  // ─── HTTP Logging ──────────────────────────────────
+  // ─── HTTP Logging (via Winston) ────────────────────
   if (config.env !== 'test') {
-    app.use(morgan(config.env === 'development' ? 'dev' : 'combined'));
+    app.use(morgan('combined', { stream: logger.stream }));
   }
 
   // ─── API Routes ────────────────────────────────────
