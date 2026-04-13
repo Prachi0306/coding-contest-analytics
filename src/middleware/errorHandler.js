@@ -28,6 +28,22 @@ const handleDuplicateKeyError = (err) => {
   return AppError.conflict(`Duplicate value "${value}" for field "${field}"`);
 };
 
+// ─── Joi Validation Error Handler ───────────────────
+/**
+ * Handle Joi validation errors (from the validate middleware).
+ */
+const handleJoiValidationError = (err) => {
+  const details = err.details.map((detail) => ({
+    field: detail.path.join('.'),
+    message: detail.message.replace(/"/g, ''),
+    type: detail.type,
+  }));
+  const message = details.map((d) => d.message).join('; ');
+  const appError = AppError.validation(`Validation failed: ${message}`);
+  appError.details = details;
+  return appError;
+};
+
 /**
  * Handle JWT errors.
  */
@@ -64,11 +80,12 @@ const globalErrorHandler = (err, req, res, next) => {
   let error = { ...err, message: err.message, stack: err.stack };
 
   // ─── Transform known error types into AppError ────
-  if (err.name === 'CastError') error = handleCastError(err);
-  if (err.name === 'ValidationError') error = handleValidationError(err);
-  if (err.code === 11000) error = handleDuplicateKeyError(err);
-  if (err.name === 'JsonWebTokenError') error = handleJWTError();
-  if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
+  if (err.isJoi) error = handleJoiValidationError(err);
+  else if (err.name === 'CastError') error = handleCastError(err);
+  else if (err.name === 'ValidationError') error = handleValidationError(err);
+  else if (err.code === 11000) error = handleDuplicateKeyError(err);
+  else if (err.name === 'JsonWebTokenError') error = handleJWTError();
+  else if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
 
   // ─── Determine final status + message ─────────────
   const statusCode = error.statusCode || 500;
@@ -100,13 +117,18 @@ const globalErrorHandler = (err, req, res, next) => {
     message,
   };
 
+  // Include validation details for client-side field-level error display
+  if (error.details) {
+    response.details = error.details;
+  }
+
   // Include stack trace only in development
   if (process.env.NODE_ENV === 'development') {
     response.stack = err.stack;
     response.isOperational = isOperational;
   }
 
-  return sendError(res, statusCode, message, process.env.NODE_ENV === 'development' ? response : undefined);
+  return sendError(res, statusCode, message, response);
 };
 
 module.exports = { notFoundHandler, globalErrorHandler };
