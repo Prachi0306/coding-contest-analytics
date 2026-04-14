@@ -1,6 +1,7 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
 const { validate } = require('../middleware/validate');
+const { authenticate } = require('../middleware/auth');
 const { authSchemas } = require('../validations');
 
 const router = express.Router();
@@ -27,9 +28,29 @@ router.post(
   authController.login
 );
 
-// ─── Protected routes (auth middleware added in Step 7) ──
+// ─── Protected Routes ───────────────────────────────
 
-// router.put('/change-password', authMiddleware, validate(authSchemas.changePassword), authController.changePassword);
-// router.get('/me', authMiddleware, authController.getProfile);
+/**
+ * @route   PUT /api/auth/change-password
+ * @desc    Change authenticated user's password
+ * @access  Private
+ */
+router.put(
+  '/change-password',
+  authenticate,
+  validate(authSchemas.changePassword),
+  authController.changePassword
+);
+
+/**
+ * @route   GET /api/auth/me
+ * @desc    Get current user's profile
+ * @access  Private
+ */
+router.get(
+  '/me',
+  authenticate,
+  authController.getProfile
+);
 
 module.exports = router;
