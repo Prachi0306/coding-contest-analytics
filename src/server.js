@@ -2,6 +2,8 @@ const config = require('./config');
 const { connectDB, disconnectDB } = require('./config/database');
 const createApp = require('./app');
 const logger = require('./utils/logger');
+const { initJobSystem, shutdownJobSystem } = require('./jobs');
+const { closeRedisConnections } = require('./config/redis');
 
 /**
  * Server entry point.
@@ -16,13 +18,16 @@ const startServer = async () => {
     const app = createApp();
 
     // 3. Start listening
-    const server = app.listen(config.port, () => {
+    const server = app.listen(config.port, async () => {
       logger.info('═══════════════════════════════════════════════');
       logger.info(`  🚀 Server running in ${config.env} mode`);
       logger.info(`  📡 Port: ${config.port}`);
       logger.info(`  🔗 URL: http://localhost:${config.port}`);
       logger.info(`  💚 Health: http://localhost:${config.port}/api/health`);
       logger.info('═══════════════════════════════════════════════');
+
+      // 4. Initialize background job system (non-blocking)
+      await initJobSystem();
     });
 
     // ─── Graceful Shutdown ─────────────────────────────
@@ -31,6 +36,8 @@ const startServer = async () => {
 
       server.close(async () => {
         logger.info('HTTP server closed');
+        await shutdownJobSystem();
+        await closeRedisConnections();
         await disconnectDB();
         process.exit(0);
       });
