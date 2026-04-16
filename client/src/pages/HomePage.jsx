@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import useAuthStore from '../store/authStore';
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const user = useAuthStore(state => state.user);
 
   return (
     <div className="page">

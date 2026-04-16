@@ -61,7 +61,7 @@ export const statsAPI = {
     api.get('/stats/latest-rating', { params: { platform } }),
   getCodeforcesProfile: () => api.get('/stats/codeforces-profile'),
   getLeaderboard: (params) =>
-    api.get('/stats/leaderboard', { params }),
+    api.get('/leaderboard', { params }),
 };
 
 // ─── Sync ─────────────────────────────────────────

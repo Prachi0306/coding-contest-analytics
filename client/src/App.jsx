@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import useAuthStore from './store/authStore';
+import { useEffect } from 'react';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -9,7 +10,8 @@ import ContestsPage from './pages/ContestsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
 
   if (loading) {
     return (
@@ -46,11 +48,15 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const checkAuth = useAuthStore(state => state.checkAuth);
+  
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <AppRoutes />
     </BrowserRouter>
   );
 }
