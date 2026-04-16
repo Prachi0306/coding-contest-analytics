@@ -199,14 +199,6 @@ class DataSyncService {
       errors: [],
     };
 
-    // ─── Sync contests (shared across all users) ──────
-    try {
-      results.contests = await this.syncCodeforcesContests();
-    } catch (error) {
-      logger.error('Contest sync failed during full sync', { error: error.message });
-      results.errors.push({ type: 'contests', message: error.message });
-    }
-
     // ─── Sync user's rating history ───────────────────
     try {
       results.ratings = await this.syncUserRatingHistory(userId, handle);
@@ -214,6 +206,10 @@ class DataSyncService {
       logger.error('Rating sync failed during full sync', { error: error.message });
       results.errors.push({ type: 'ratings', message: error.message });
     }
+
+    // Note: Global contest sync (syncCodeforcesContests) was removed from here.
+    // It should be handled by an independent background cron/worker job (Step 12)
+    // to vastly reduce API calls and improve frontend response times during manual syncs.
 
     // ─── If both failed, throw ────────────────────────
     if (results.errors.length === 2) {

@@ -90,8 +90,8 @@ userStatsSchema.index({ userId: 1, platform: 1, contestId: 1 }, { unique: true }
 // Query user's stats for a platform, sorted by contest time
 userStatsSchema.index({ userId: 1, platform: 1, timestamp: -1 });
 
-// Leaderboard queries: find top-rated users per platform
-userStatsSchema.index({ platform: 1, newRating: -1 });
+// Leaderboard queries: find top-rated users per platform natively bypassing full scans.
+userStatsSchema.index({ platform: 1, userId: 1, timestamp: -1 });
 
 // ─── Static Methods ─────────────────────────────────────
 
