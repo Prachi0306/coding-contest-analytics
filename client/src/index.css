@@ -566,3 +566,7 @@ tr:hover td {
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
 }
+
+/* ─── Dashboard specific ────────────────────────── */
+.dashboard-columns { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-xl); align-items: start; }
+@media (max-width: 992px) { .dashboard-columns { grid-template-columns: 1fr; } }

@@ -7,6 +7,7 @@ export default function DashboardPage() {
   const user = useAuthStore(state => state.user);
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
@@ -14,12 +15,14 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [sumRes, histRes] = await Promise.all([
+      const [sumRes, histRes, leadRes] = await Promise.all([
         statsAPI.getSummary('codeforces'),
         statsAPI.getRatingHistory('codeforces'),
+        statsAPI.getLeaderboard({ platform: 'codeforces', limit: 10 }),
       ]);
       setSummary(sumRes.data.summary);
       setHistory(histRes.data.history || []);
+      setLeaderboard(leadRes.data.leaderboard || []);
     } catch {
       // Data might not be synced yet
     } finally {
@@ -185,46 +188,82 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Recent Contests Table */}
-            {history.length > 0 && (
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Recent Contests</h2>
-                </div>
-                <div className="table-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Contest</th>
-                        <th>Rank</th>
-                        <th>Rating</th>
-                        <th>Change</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {history.slice(-15).reverse().map((h) => (
-                        <tr key={h._id || h.contestId}>
-                          <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {h.contestName}
-                          </td>
-                          <td>{h.rank}</td>
-                          <td>{h.newRating}</td>
-                          <td>
-                            <span className={`badge ${h.ratingChange >= 0 ? 'badge--positive' : 'badge--negative'}`}>
-                              {h.ratingChange >= 0 ? '+' : ''}{h.ratingChange}
-                            </span>
-                          </td>
-                          <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                            {new Date(h.timestamp).toLocaleDateString()}
-                          </td>
+            {/* Lower Section: Tables */}
+            <div className="dashboard-columns">
+              {/* Recent Contests Table */}
+              {history.length > 0 && (
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Recent Contests</h2>
+                  </div>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Contest</th>
+                          <th>Rank</th>
+                          <th>Rating</th>
+                          <th>Change</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {history.slice(-10).reverse().map((h) => (
+                          <tr key={h._id || h.contestId}>
+                            <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {h.contestName}
+                            </td>
+                            <td>{h.rank}</td>
+                            <td>{h.newRating}</td>
+                            <td>
+                              <span className={`badge ${h.ratingChange >= 0 ? 'badge--positive' : 'badge--negative'}`}>
+                                {h.ratingChange >= 0 ? '+' : ''}{h.ratingChange}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Leaderboard Table */}
+              {leaderboard.length > 0 && (
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Top 10 Global Leaderboard</h2>
+                  </div>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>User</th>
+                          <th>Rating</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaderboard.slice(0, 10).map((u, i) => (
+                          <tr key={u.userId} style={{ backgroundColor: u.userId === user?.id ? 'rgba(99, 102, 241, 0.05)' : 'transparent' }}>
+                            <td style={{ fontWeight: 700, color: i < 3 ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>
+                              {i + 1}
+                            </td>
+                            <td style={{ fontWeight: u.userId === user?.id ? 700 : 500, color: u.userId === user?.id ? 'var(--accent-primary)' : 'inherit' }}>
+                              {u.username} {u.userId === user?.id && '(You)'}
+                            </td>
+                            <td>
+                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {u.latestRating}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
