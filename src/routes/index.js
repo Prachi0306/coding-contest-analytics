@@ -4,6 +4,7 @@ const authRoutes = require('./auth.routes');
 const contestRoutes = require('./contest.routes');
 const statsRoutes = require('./stats.routes');
 const syncRoutes = require('./sync.routes');
+const leaderboardRoutes = require('./leaderboard.routes');
 
 const router = express.Router();
 
@@ -26,6 +27,9 @@ router.use('/stats', statsRoutes);
 
 // Data Sync
 router.use('/sync', syncRoutes);
+
+// Leaderboard
+router.use('/leaderboard', leaderboardRoutes);
 
 module.exports = router;
 

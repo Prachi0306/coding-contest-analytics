@@ -4,15 +4,6 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-// ─── Public Routes ──────────────────────────────────
-
-/**
- * @route   GET /api/stats/leaderboard
- * @desc    Get leaderboard — top users by rating
- * @access  Public
- */
-router.get('/leaderboard', statsController.getLeaderboard);
-
 // ─── Private Routes ─────────────────────────────────
 
 /**
