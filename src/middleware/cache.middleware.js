@@ -17,8 +17,11 @@ const cacheMiddleware = (ttl = 300) => {
     try {
       const redis = getRedisConnection();
       
-      // Use the full URL as the cache key
-      const key = `cache:${req.originalUrl || req.url}`;
+      // Use the full URL as the base key
+      let baseKey = req.originalUrl || req.url;
+      
+      // If the route is private and req.user exists, append user ID to ensure cache isolation
+      const key = req.user ? `cache:user:${req.user.id}:${baseKey}` : `cache:public:${baseKey}`;
       
       const cachedData = await redis.get(key);
       
