@@ -70,6 +70,10 @@ export default function RegisterPage() {
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
                 required
+                minLength={3}
+                maxLength={30}
+                pattern="^[a-zA-Z0-9_-]+$"
+                title="Username may only contain letters, numbers, underscores, and hyphens"
               />
             </div>
 
@@ -84,6 +88,9 @@ export default function RegisterPage() {
                 onChange={(e) =>
                   setForm({ ...form, handles: { ...form.handles, codeforces: e.target.value } })
                 }
+                maxLength={64}
+                pattern="^[a-zA-Z0-9_.-]*$"
+                title="Valid characters: letters, numbers, underscores, dots, hyphens"
               />
             </div>
 
@@ -98,6 +105,7 @@ export default function RegisterPage() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
                 minLength={8}
+                maxLength={128}
               />
             </div>
 
@@ -111,6 +119,8 @@ export default function RegisterPage() {
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                 required
+                minLength={8}
+                maxLength={128}
               />
             </div>
 
