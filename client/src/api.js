@@ -41,6 +41,13 @@ export const authAPI = {
   changePassword: (data) => api.put('/auth/change-password', data),
 };
 
+// ─── Platforms ────────────────────────────────────
+export const platformsAPI = {
+  getProfile: () => api.get('/platforms/profile'),
+  getStatus: () => api.get('/platforms/status'),
+  connect: (data) => api.post('/platforms/connect', data),
+};
+
 // ─── Contests ─────────────────────────────────────
 export const contestAPI = {
   getContests: (params) => api.get('/contests', { params }),

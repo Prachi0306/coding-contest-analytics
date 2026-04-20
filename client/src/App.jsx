@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import ContestsPage from './pages/ContestsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
+import ConnectPlatformsPage from './pages/ConnectPlatformsPage';
 
 function ProtectedRoute({ children }) {
   const user = useAuthStore(state => state.user);
@@ -39,6 +40,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/connect-platforms"
+          element={
+            <ProtectedRoute>
+              <ConnectPlatformsPage />
             </ProtectedRoute>
           }
         />
