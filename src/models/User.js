@@ -66,6 +66,42 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    // ─── NEW: Multi-Platform Handles ─────────────────
+    // Separate from legacy "handles" for backward compatibility.
+    // Each field is optional — partial connections are allowed.
+    platformHandles: {
+      codeforces: {
+        type: String,
+        trim: true,
+        maxlength: [64, 'Codeforces handle must not exceed 64 characters'],
+        match: [
+          /^[a-zA-Z0-9_.-]*$/,
+          'Codeforces handle may only contain letters, numbers, underscores, dots, and hyphens',
+        ],
+        default: '',
+      },
+      leetcode: {
+        type: String,
+        trim: true,
+        maxlength: [64, 'LeetCode handle must not exceed 64 characters'],
+        match: [
+          /^[a-zA-Z0-9_.-]*$/,
+          'LeetCode handle may only contain letters, numbers, underscores, dots, and hyphens',
+        ],
+        default: '',
+      },
+      codechef: {
+        type: String,
+        trim: true,
+        maxlength: [64, 'CodeChef handle must not exceed 64 characters'],
+        match: [
+          /^[a-zA-Z0-9_]*$/,
+          'CodeChef handle may only contain letters, numbers, and underscores',
+        ],
+        default: '',
+      },
+    },
+
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -111,6 +147,11 @@ userSchema.index({ username: 'text', email: 'text' });
 // Index on handles for platform-based lookups
 userSchema.index({ 'handles.codeforces': 1 }, { sparse: true });
 userSchema.index({ 'handles.leetcode': 1 }, { sparse: true });
+
+// Indexes for new platformHandles fields
+userSchema.index({ 'platformHandles.codeforces': 1 }, { sparse: true });
+userSchema.index({ 'platformHandles.leetcode': 1 }, { sparse: true });
+userSchema.index({ 'platformHandles.codechef': 1 }, { sparse: true });
 
 // Index on friends for efficient friend list queries
 userSchema.index({ friends: 1 });
@@ -167,7 +208,8 @@ userSchema.methods.toPublicProfile = function () {
   return {
     id: this._id,
     username: this.username,
-    handles: this.handles,
+    handles: this.handles,             // legacy — kept for backward compat
+    platformHandles: this.platformHandles, // new multi-platform field
     createdAt: this.createdAt,
   };
 };
@@ -214,9 +256,13 @@ userSchema.statics.findByCredentials = function (identifier) {
  * @returns {Promise<Document|null>}
  */
 userSchema.statics.findByHandle = function (platform, handle) {
-  const query = {};
-  query[`handles.${platform}`] = handle;
-  return this.findOne(query);
+  // Search both legacy handles and new platformHandles
+  return this.findOne({
+    $or: [
+      { [`handles.${platform}`]: handle },
+      { [`platformHandles.${platform}`]: handle },
+    ],
+  });
 };
 
 // ─── Model ──────────────────────────────────────────────

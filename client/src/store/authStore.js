@@ -12,26 +12,28 @@ const useAuthStore = create((set) => ({
 
   checkAuth: async () => {
     const token = localStorage.getItem('token');
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    
-    if (token && !currentUser) {
+
+    if (token) {
       try {
+        // Always validate the token against the server to catch expiry
         const res = await authAPI.getProfile();
-        set({ user: res.data.user, loading: false });
-        localStorage.setItem('user', JSON.stringify(res.data.user));
+        set({ user: res.user, loading: false });
+        localStorage.setItem('user', JSON.stringify(res.user));
       } catch (error) {
+        // Token invalid or expired — clear everything
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         set({ user: null, loading: false });
       }
     } else {
-      set({ loading: false });
+      set({ user: null, loading: false });
     }
   },
 
   login: async (credentials) => {
     const res = await authAPI.login(credentials);
-    const { user: u, tokens } = res.data;
+    // Axios interceptor already unwraps .data, so res IS the response body
+    const { user: u, tokens } = res;
     localStorage.setItem('token', tokens.accessToken);
     localStorage.setItem('user', JSON.stringify(u));
     set({ user: u });
@@ -40,7 +42,8 @@ const useAuthStore = create((set) => ({
 
   register: async (data) => {
     const res = await authAPI.register(data);
-    const { user: u, tokens } = res.data;
+    // Axios interceptor already unwraps .data, so res IS the response body
+    const { user: u, tokens } = res;
     localStorage.setItem('token', tokens.accessToken);
     localStorage.setItem('user', JSON.stringify(u));
     set({ user: u });
