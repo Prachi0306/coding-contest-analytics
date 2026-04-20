@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
-import { statsAPI, syncAPI } from '../api';
+import { platformsAPI, statsAPI, syncAPI } from '../api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function DashboardPage() {
   const user = useAuthStore(state => state.user);
-  const [summary, setSummary] = useState(null);
-  const [history, setHistory] = useState([]);
+  
+  // Data State
+  const [platforms, setPlatforms] = useState([]);
+  const [failedPlatforms, setFailedPlatforms] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  
+  // UI State
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
@@ -15,16 +19,17 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [sumRes, histRes, leadRes] = await Promise.all([
-        statsAPI.getSummary('codeforces'),
-        statsAPI.getRatingHistory('codeforces'),
-        statsAPI.getLeaderboard({ platform: 'codeforces', limit: 10 }),
+      // Parallel safe fetching
+      const [profRes, leadRes] = await Promise.all([
+        platformsAPI.getProfile().catch(() => ({ data: { platforms: [], failedPlatforms: [] } })),
+        statsAPI.getLeaderboard({ platform: 'codeforces', limit: 10 }).catch(() => ({ data: {} })),
       ]);
-      setSummary(sumRes.data.summary);
-      setHistory(histRes.data.history || []);
-      setLeaderboard(leadRes.data.leaderboard || []);
-    } catch {
-      // Data might not be synced yet
+      
+      setPlatforms(profRes.data?.platforms || []);
+      setFailedPlatforms(profRes.data?.failedPlatforms || []);
+      setLeaderboard(leadRes.data?.leaderboard || []);
+    } catch (err) {
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -46,10 +51,14 @@ export default function DashboardPage() {
     }
   };
 
-  const chartData = history.map((h) => ({
-    name: new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-    rating: h.newRating,
-    change: h.ratingChange,
+  // Find Codeforces data specifically to maintain legacy dashboard widgets until fully migrated
+  const cfData = platforms.find(p => p.platform === 'codeforces');
+  const cfContests = cfData?.contests || [];
+  
+  const chartData = cfContests.map((h) => ({
+    name: h.timestamp ? new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : 'Unknown',
+    rating: h.rating || h.newRating,
+    change: h.ratingChange || 0,
   }));
 
   if (loading) {
@@ -75,84 +84,59 @@ export default function DashboardPage() {
           <button
             className="btn btn--primary"
             onClick={handleSync}
-            disabled={syncing}
+            disabled={syncing || platforms.length === 0}
           >
             {syncing ? '⏳ Syncing...' : '🔄 Sync Data'}
           </button>
         </div>
 
+        {/* Action Messages */}
         {syncMsg && (
-          <div className={`alert ${syncMsg.includes('fail') ? 'alert--error' : 'alert--success'}`}>
+          <div className={`alert ${syncMsg.includes('fail') ? 'alert--error' : 'alert--success'}`} style={{ marginBottom: '16px' }}>
             {syncMsg}
           </div>
         )}
 
-        {!summary && history.length === 0 ? (
+        {/* Failed Platforms Warning Box - FAULT TOLERANCE UI */}
+        {failedPlatforms.length > 0 && (
+          <div className="alert alert--warning" style={{ marginBottom: '24px' }}>
+            <strong>Warning:</strong> The following platforms failed to sync and their data is not displayed:
+            <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+              {failedPlatforms.map((fp, idx) => (
+                <li key={idx}>
+                  <strong>{fp.platform}</strong> ({fp.handle}): {fp.error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {platforms.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__icon">📊</div>
-            <h2 className="empty-state__title">No stats yet</h2>
-            <p>Click "Sync Data" to import your Codeforces rating history.</p>
-            <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>
-              Make sure your Codeforces handle is set in your profile.
-            </p>
+            <h2 className="empty-state__title">No stats available</h2>
+            <p>Connect platforms via the settings or profile page to start tracking your competitive programming stats.</p>
           </div>
         ) : (
           <>
-            {/* Stats Grid */}
+            {/* Stats Grid - Currently driven by Codeforces for backward compatibility before multi-platform graph task */}
             <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
-              <div className="stat-card">
-                <span className="stat-card__label">Current Rating</span>
-                <span className="stat-card__value stat-card__value--accent">
-                  {summary?.currentRating ?? '—'}
-                </span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Max Rating</span>
-                <span className="stat-card__value stat-card__value--cyan">
-                  {summary?.maxRating ?? '—'}
-                </span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Total Contests</span>
-                <span className="stat-card__value">{summary?.totalContests ?? '—'}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Best Rank</span>
-                <span className="stat-card__value stat-card__value--positive">
-                  #{summary?.bestRank ?? '—'}
-                </span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Avg Rank</span>
-                <span className="stat-card__value">{summary?.avgRank ?? '—'}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Rating Gains</span>
-                <span className="stat-card__value stat-card__value--positive">
-                  {summary?.totalPositiveChanges ?? '—'}
-                </span>
-                <span className="stat-card__sub">contests with +Δ</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Rating Drops</span>
-                <span className="stat-card__value stat-card__value--negative">
-                  {summary?.totalNegativeChanges ?? '—'}
-                </span>
-                <span className="stat-card__sub">contests with -Δ</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__label">Best Δ</span>
-                <span className="stat-card__value stat-card__value--positive">
-                  +{summary?.maxRatingChange ?? '—'}
-                </span>
-              </div>
+              {platforms.map(platform => (
+                <div key={platform.platform} className="stat-card" style={{ borderLeft: `4px solid var(--accent-${platform.platform === 'codeforces' ? 'primary' : platform.platform === 'leetcode' ? 'yellow' : 'cyan'})` }}>
+                  <span className="stat-card__label" style={{textTransform: 'capitalize'}}>{platform.platform} Rating</span>
+                  <span className="stat-card__value stat-card__value--accent">
+                    {platform.rating ?? '—'}
+                  </span>
+                  <span className="stat-card__sub">Max: {platform.maxRating ?? '—'}</span>
+                </div>
+              ))}
             </div>
 
-            {/* Rating Chart */}
+            {/* Rating Chart (Codeforces only for now) */}
             {chartData.length > 0 && (
               <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
                 <div className="card-header">
-                  <h2 className="card-title">Rating History</h2>
+                  <h2 className="card-title">Codeforces Rating History</h2>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     {chartData.length} contests
                   </span>
@@ -191,10 +175,10 @@ export default function DashboardPage() {
             {/* Lower Section: Tables */}
             <div className="dashboard-columns">
               {/* Recent Contests Table */}
-              {history.length > 0 && (
+              {cfContests.length > 0 && (
                 <div className="card">
                   <div className="card-header">
-                    <h2 className="card-title">Recent Contests</h2>
+                    <h2 className="card-title">Recent CF Contests</h2>
                   </div>
                   <div className="table-wrapper">
                     <table>
@@ -203,22 +187,16 @@ export default function DashboardPage() {
                           <th>Contest</th>
                           <th>Rank</th>
                           <th>Rating</th>
-                          <th>Change</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {history.slice(-10).reverse().map((h) => (
-                          <tr key={h._id || h.contestId}>
+                        {cfContests.slice(-10).reverse().map((h, i) => (
+                          <tr key={h._id || h.contestId || i}>
                             <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {h.contestName}
                             </td>
                             <td>{h.rank}</td>
-                            <td>{h.newRating}</td>
-                            <td>
-                              <span className={`badge ${h.ratingChange >= 0 ? 'badge--positive' : 'badge--negative'}`}>
-                                {h.ratingChange >= 0 ? '+' : ''}{h.ratingChange}
-                              </span>
-                            </td>
+                            <td>{h.rating || h.newRating}</td>
                           </tr>
                         ))}
                       </tbody>
