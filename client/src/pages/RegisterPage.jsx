@@ -26,8 +26,16 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(form);
-      navigate('/dashboard');
+      const user = await register(form);
+      
+      const hasPlatformHandles = user.platformHandles && Object.values(user.platformHandles).some(h => h && h.trim());
+      const hasLegacyHandles = user.handles && Object.values(user.handles).some(h => h && h.trim());
+      
+      if (!hasPlatformHandles && !hasLegacyHandles) {
+        navigate('/connect-platforms');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {

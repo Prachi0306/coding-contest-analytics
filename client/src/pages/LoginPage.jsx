@@ -14,8 +14,16 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(form);
-      navigate('/dashboard');
+      const user = await login(form);
+      
+      const hasPlatformHandles = user.platformHandles && Object.values(user.platformHandles).some(h => h && h.trim());
+      const hasLegacyHandles = user.handles && Object.values(user.handles).some(h => h && h.trim());
+      
+      if (!hasPlatformHandles && !hasLegacyHandles) {
+        navigate('/connect-platforms');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
