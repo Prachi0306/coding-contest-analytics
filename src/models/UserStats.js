@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 // ─── Constants ──────────────────────────────────────────
 
-const PLATFORMS = ['codeforces', 'leetcode'];
+const PLATFORMS = ['codeforces', 'leetcode', 'codechef'];
 
 // ─── Schema Definition ─────────────────────────────────
 
@@ -27,7 +27,7 @@ const userStatsSchema = new mongoose.Schema(
     },
 
     contestId: {
-      type: Number,
+      type: String,
       required: [true, 'Contest ID is required'],
     },
 
@@ -105,9 +105,11 @@ userStatsSchema.index({ platform: 1, userId: 1, timestamp: -1 });
 userStatsSchema.statics.upsertStats = function (statsData) {
   const { userId, platform, contestId, ...updateFields } = statsData;
 
+  const stringId = String(contestId);
+
   return this.findOneAndUpdate(
-    { userId, platform: platform.toLowerCase(), contestId },
-    { $set: { userId, platform: platform.toLowerCase(), contestId, ...updateFields } },
+    { userId, platform: platform.toLowerCase(), contestId: stringId },
+    { $set: { userId, platform: platform.toLowerCase(), contestId: stringId, ...updateFields } },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
 };
@@ -129,11 +131,12 @@ userStatsSchema.statics.bulkUpsertStats = function (statsArray) {
       filter: {
         userId: stat.userId,
         platform: stat.platform.toLowerCase(),
-        contestId: stat.contestId,
+        contestId: String(stat.contestId),
       },
       update: {
         $set: {
           ...stat,
+          contestId: String(stat.contestId),
           platform: stat.platform.toLowerCase(),
         },
       },
@@ -263,7 +266,7 @@ userStatsSchema.statics.getLeaderboard = function (platform, limit = 20) {
         localField: '_id',
         foreignField: '_id',
         as: 'user',
-        pipeline: [{ $project: { username: 1, 'handles.codeforces': 1, 'handles.leetcode': 1 } }],
+        pipeline: [{ $project: { username: 1, handles: 1, platformHandles: 1 } }],
       },
     },
     { $unwind: '$user' },
@@ -272,7 +275,7 @@ userStatsSchema.statics.getLeaderboard = function (platform, limit = 20) {
         _id: 0,
         userId: '$_id',
         username: '$user.username',
-        handle: `$user.handles.${platform.toLowerCase()}`,
+        handle: { $ifNull: [`$user.platformHandles.${platform.toLowerCase()}`, `$user.handles.${platform.toLowerCase()}`] },
         latestRating: 1,
         maxRating: 1,
         totalContests: 1,

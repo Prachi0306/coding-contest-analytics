@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 // ─── Constants ──────────────────────────────────────────
 
-const PLATFORMS = ['codeforces', 'leetcode'];
+const PLATFORMS = ['codeforces', 'leetcode', 'codechef'];
 const CONTEST_PHASES = ['BEFORE', 'CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST', 'FINISHED'];
 const CONTEST_TYPES = ['CF', 'IOI', 'ICPC', 'OTHER'];
 
@@ -22,7 +22,7 @@ const contestSchema = new mongoose.Schema(
     },
 
     contestId: {
-      type: Number,
+      type: String,
       required: [true, 'Contest ID is required'],
     },
 
@@ -117,7 +117,7 @@ contestSchema.pre('save', function (next) {
  * @returns {Promise<Document|null>}
  */
 contestSchema.statics.findByPlatformAndId = function (platform, contestId) {
-  return this.findOne({ platform: platform.toLowerCase(), contestId });
+  return this.findOne({ platform: platform.toLowerCase(), contestId: String(contestId) });
 };
 
 /**
@@ -148,9 +148,11 @@ contestSchema.statics.upsertContest = function (contestData) {
     updateFields.durationFormatted = Contest.formatDuration(updateFields.duration);
   }
 
+  const stringId = String(contestId);
+
   return this.findOneAndUpdate(
-    { platform: platform.toLowerCase(), contestId },
-    { $set: { platform: platform.toLowerCase(), contestId, ...updateFields } },
+    { platform: platform.toLowerCase(), contestId: stringId },
+    { $set: { platform: platform.toLowerCase(), contestId: stringId, ...updateFields } },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
 };
@@ -165,10 +167,11 @@ contestSchema.statics.bulkUpsertContests = function (contests) {
 
   const operations = contests.map((contest) => ({
     updateOne: {
-      filter: { platform: contest.platform.toLowerCase(), contestId: contest.contestId },
+      filter: { platform: contest.platform.toLowerCase(), contestId: String(contest.contestId) },
       update: {
         $set: {
           ...contest,
+          contestId: String(contest.contestId),
           platform: contest.platform.toLowerCase(),
           durationFormatted: contest.duration ? Contest.formatDuration(contest.duration) : '',
         },
