@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
 import { platformsAPI, statsAPI, syncAPI } from '../api';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function DashboardPage() {
   const user = useAuthStore(state => state.user);
@@ -16,10 +16,20 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
+  // Graph Toggle State
+  const [visibleGraphs, setVisibleGraphs] = useState({
+    codeforces: true,
+    leetcode: true,
+    codechef: true,
+  });
+
+  const toggleGraph = (platform) => {
+    setVisibleGraphs(prev => ({ ...prev, [platform]: !prev[platform] }));
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Parallel safe fetching
       const [profRes, leadRes] = await Promise.all([
         platformsAPI.getProfile().catch(() => ({ data: { platforms: [], failedPlatforms: [] } })),
         statsAPI.getLeaderboard({ platform: 'codeforces', limit: 10 }).catch(() => ({ data: {} })),
@@ -51,15 +61,42 @@ export default function DashboardPage() {
     }
   };
 
+  // --- Graph Normalization ---
+  // 1. Gather all events
+  const allEvents = [];
+  platforms.forEach(p => {
+    (p.contests || []).forEach(c => {
+      if (c.timestamp) {
+        allEvents.push({
+          platform: p.platform,
+          timestamp: new Date(c.timestamp).getTime(),
+          rating: c.rating || c.newRating
+        });
+      }
+    });
+  });
+
+  // 2. Sort chronologically
+  allEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+  // 3. Build unified chart data safely
+  const chartData = [];
+  let lastRatings = { codeforces: null, leetcode: null, codechef: null };
+
+  allEvents.forEach(event => {
+    lastRatings[event.platform] = event.rating;
+    chartData.push({
+      timestamp: event.timestamp,
+      name: new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      codeforces: lastRatings.codeforces,
+      leetcode: lastRatings.leetcode,
+      codechef: lastRatings.codechef,
+    });
+  });
+
   // Find Codeforces data specifically to maintain legacy dashboard widgets until fully migrated
   const cfData = platforms.find(p => p.platform === 'codeforces');
   const cfContests = cfData?.contests || [];
-  
-  const chartData = cfContests.map((h) => ({
-    name: h.timestamp ? new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) : 'Unknown',
-    rating: h.rating || h.newRating,
-    change: h.ratingChange || 0,
-  }));
 
   if (loading) {
     return (
@@ -119,7 +156,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Stats Grid - Currently driven by Codeforces for backward compatibility before multi-platform graph task */}
+            {/* Stats Grid */}
             <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
               {platforms.map(platform => (
                 <div key={platform.platform} className="stat-card" style={{ borderLeft: `4px solid var(--accent-${platform.platform === 'codeforces' ? 'primary' : platform.platform === 'leetcode' ? 'yellow' : 'cyan'})` }}>
@@ -132,14 +169,37 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Rating Chart (Codeforces only for now) */}
+            {/* Rating Chart (Multi-Platform) */}
             {chartData.length > 0 && (
               <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
-                <div className="card-header">
-                  <h2 className="card-title">Codeforces Rating History</h2>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {chartData.length} contests
-                  </span>
+                <div className="card-header" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div>
+                    <h2 className="card-title">Multi-Platform Rating History</h2>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {chartData.length} total contests
+                    </span>
+                  </div>
+                  {/* Graph Toggles */}
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
+                    {platforms.some(p => p.platform === 'codeforces') && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                        <input type="checkbox" checked={visibleGraphs.codeforces} onChange={() => toggleGraph('codeforces')} />
+                        <span style={{ color: '#6366f1', fontWeight: 600 }}>Codeforces</span>
+                      </label>
+                    )}
+                    {platforms.some(p => p.platform === 'leetcode') && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                        <input type="checkbox" checked={visibleGraphs.leetcode} onChange={() => toggleGraph('leetcode')} />
+                        <span style={{ color: '#eab308', fontWeight: 600 }}>LeetCode</span>
+                      </label>
+                    )}
+                    {platforms.some(p => p.platform === 'codechef') && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                        <input type="checkbox" checked={visibleGraphs.codechef} onChange={() => toggleGraph('codechef')} />
+                        <span style={{ color: '#06b6d4', fontWeight: 600 }}>CodeChef</span>
+                      </label>
+                    )}
+                  </div>
                 </div>
                 <ResponsiveContainer width="100%" height={340}>
                   <LineChart data={chartData}>
@@ -147,26 +207,55 @@ export default function DashboardPage() {
                     <XAxis
                       dataKey="name"
                       tick={{ fill: '#64748b', fontSize: 11 }}
-                      interval={Math.floor(chartData.length / 8)}
+                      interval={Math.ceil(chartData.length / 8)}
                     />
-                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} domain={['auto', 'auto']} />
                     <Tooltip
                       contentStyle={{
                         background: '#1a1f2e',
-                        border: '1px solid rgba(99,102,241,0.3)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '10px',
                         color: '#f1f5f9',
                         fontSize: '0.85rem',
                       }}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="rating"
-                      stroke="#6366f1"
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 5, fill: '#818cf8' }}
-                    />
+                    <Legend />
+                    {visibleGraphs.codeforces && (
+                      <Line
+                        type="stepAfter"
+                        dataKey="codeforces"
+                        name="Codeforces"
+                        stroke="#6366f1"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                        activeDot={{ r: 5, fill: '#818cf8' }}
+                      />
+                    )}
+                    {visibleGraphs.leetcode && (
+                      <Line
+                        type="stepAfter"
+                        dataKey="leetcode"
+                        name="LeetCode"
+                        stroke="#eab308"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                        activeDot={{ r: 5, fill: '#fef08a' }}
+                      />
+                    )}
+                    {visibleGraphs.codechef && (
+                      <Line
+                        type="stepAfter"
+                        dataKey="codechef"
+                        name="CodeChef"
+                        stroke="#06b6d4"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                        activeDot={{ r: 5, fill: '#67e8f9' }}
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
