@@ -118,6 +118,30 @@ class UserRepository {
   }
 
   /**
+   * Update user platformHandles (multi-platform handles).
+   * Only updates fields that are explicitly provided.
+   * @param {string} id - User ID
+   * @param {object} platformHandles - { codeforces?, leetcode?, codechef? }
+   * @returns {Promise<Document|null>}
+   */
+  async updatePlatformHandles(id, platformHandles) {
+    const update = {};
+    if (platformHandles.codeforces !== undefined) {
+      update['platformHandles.codeforces'] = platformHandles.codeforces;
+    }
+    if (platformHandles.leetcode !== undefined) {
+      update['platformHandles.leetcode'] = platformHandles.leetcode;
+    }
+    if (platformHandles.codechef !== undefined) {
+      update['platformHandles.codechef'] = platformHandles.codechef;
+    }
+
+    if (Object.keys(update).length === 0) return this.findById(id);
+
+    return User.findByIdAndUpdate(id, { $set: update }, { new: true, runValidators: true });
+  }
+
+  /**
    * Add a friend to the user's friend list.
    * @param {string} userId - User ID
    * @param {string} friendId - Friend's User ID

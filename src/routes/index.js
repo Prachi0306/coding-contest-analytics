@@ -5,6 +5,7 @@ const contestRoutes = require('./contest.routes');
 const statsRoutes = require('./stats.routes');
 const syncRoutes = require('./sync.routes');
 const leaderboardRoutes = require('./leaderboard.routes');
+const platformRoutes = require('./platform.routes');
 
 const router = express.Router();
 
@@ -30,6 +31,9 @@ router.use('/sync', syncRoutes);
 
 // Leaderboard
 router.use('/leaderboard', leaderboardRoutes);
+
+// Multi-Platform Profiles
+router.use('/platforms', platformRoutes);
 
 module.exports = router;
 
