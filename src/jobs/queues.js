@@ -6,7 +6,9 @@ const logger = require('../utils/logger');
 
 const QUEUE_NAMES = {
   SYNC_CONTESTS: 'sync-contests',
-  SYNC_USER_RATINGS: 'sync-user-ratings',
+  SYNC_CODEFORCES: 'sync-codeforces',
+  SYNC_LEETCODE: 'sync-leetcode',
+  SYNC_CODECHEF: 'sync-codechef',
   SYNC_ALL_USERS: 'sync-all-users',
 };
 
@@ -21,25 +23,36 @@ let queues = {};
 const initQueues = () => {
   const connection = getRedisConnection();
 
+  const defaultJobOptions = {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 3000 },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 200 },
+  };
+
   queues = {
     syncContests: new Queue(QUEUE_NAMES.SYNC_CONTESTS, {
       connection,
       defaultJobOptions: {
+        ...defaultJobOptions,
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: { count: 50 },  // Keep last 50 completed jobs
-        removeOnFail: { count: 100 },     // Keep last 100 failed jobs
       },
     }),
 
-    syncUserRatings: new Queue(QUEUE_NAMES.SYNC_USER_RATINGS, {
+    syncCodeforces: new Queue(QUEUE_NAMES.SYNC_CODEFORCES, {
       connection,
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 3000 },
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 200 },
-      },
+      defaultJobOptions,
+    }),
+
+    syncLeetcode: new Queue(QUEUE_NAMES.SYNC_LEETCODE, {
+      connection,
+      defaultJobOptions,
+    }),
+
+    syncCodechef: new Queue(QUEUE_NAMES.SYNC_CODECHEF, {
+      connection,
+      defaultJobOptions,
     }),
 
     syncAllUsers: new Queue(QUEUE_NAMES.SYNC_ALL_USERS, {
@@ -60,6 +73,75 @@ const initQueues = () => {
 // ─── Job Producers ──────────────────────────────────────
 
 /**
+ * Add a platform profile sync job to the queue.
+ * @param {string} userId - MongoDB User ID
+ * @param {string} platform - 'codeforces', 'leetcode', 'codechef'
+ * @param {string} handle - Platform handle
+ * @returns {Promise<Job>}
+ */
+const addPlatformSyncJob = async (userId, platform, handle) => {
+  const queueMap = {
+    codeforces: queues.syncCodeforces,
+    leetcode: queues.syncLeetcode,
+    codechef: queues.syncCodechef,
+  };
+
+  const queue = queueMap[platform];
+  if (!queue) {
+    initQueues(); // lazy initialization safety
+    const qMap = {
+      codeforces: queues.syncCodeforces,
+      leetcode: queues.syncLeetcode,
+      codechef: queues.syncCodechef,
+    };
+    if (!qMap[platform]) throw new Error(`Invalid platform for queue: ${platform}`);
+  }
+
+  // Use jobId = userId + platform to prevent duplicates
+  const jobId = `${userId}-${platform}`;
+
+  const job = await queueMap[platform].add(
+    `sync-${platform}-${handle}`,
+    { userId, handle, platform, triggeredAt: new Date().toISOString() },
+    { jobId } // Built-in BullMQ duplicate prevention based on jobId
+  );
+
+  logger.info(`[Job] Added ${platform} sync for ${handle} (Job ID: ${job.id})`);
+  return job;
+};
+
+/**
+ * Check job status by platform and user ID.
+ * @param {string} userId - MongoDB User ID
+ * @param {string} platform - Platform name
+ * @returns {Promise<object|null>} Job status
+ */
+const getJobStatus = async (userId, platform) => {
+  const queueMap = {
+    codeforces: queues.syncCodeforces,
+    leetcode: queues.syncLeetcode,
+    codechef: queues.syncCodechef,
+  };
+
+  const queue = queueMap[platform];
+  if (!queue) return null;
+
+  const jobId = `${userId}-${platform}`;
+  const job = await queue.getJob(jobId);
+
+  if (!job) return null;
+
+  const state = await job.getState();
+  return {
+    jobId,
+    platform,
+    state,
+    progress: job.progress,
+    failedReason: job.failedReason,
+  };
+};
+
+/**
  * Add a contest sync job to the queue.
  * @returns {Promise<Job>}
  */
@@ -70,23 +152,6 @@ const addContestSyncJob = async () => {
     triggeredAt: new Date().toISOString(),
   });
   logger.info(`Contest sync job added: ${job.id}`);
-  return job;
-};
-
-/**
- * Add a user rating sync job to the queue.
- * @param {string} userId - MongoDB User ID
- * @param {string} handle - Codeforces handle
- * @returns {Promise<Job>}
- */
-const addUserRatingSyncJob = async (userId, handle) => {
-  if (!queues.syncUserRatings) initQueues();
-  const job = await queues.syncUserRatings.add(
-    `sync-ratings-${handle}`,
-    { userId, handle, platform: 'codeforces', triggeredAt: new Date().toISOString() },
-    { jobId: `user-rating-${userId}` } // Deduplicate: one job per user at a time
-  );
-  logger.info(`User rating sync job added: ${job.id} (${handle})`);
   return job;
 };
 
@@ -152,7 +217,8 @@ module.exports = {
   QUEUE_NAMES,
   initQueues,
   addContestSyncJob,
-  addUserRatingSyncJob,
+  addPlatformSyncJob,
+  getJobStatus,
   addBatchSyncJob,
   scheduleRecurringJobs,
   closeQueues,

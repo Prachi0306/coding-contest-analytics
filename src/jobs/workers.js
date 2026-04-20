@@ -2,6 +2,7 @@ const { Worker } = require('bullmq');
 const { createRedisConnection } = require('../config/redis');
 const { QUEUE_NAMES } = require('./queues');
 const dataSyncService = require('../services/dataSync.service');
+const platformAggregator = require('../services/platformAggregator.service');
 const logger = require('../utils/logger');
 
 /**
@@ -18,14 +19,12 @@ let workers = [];
  * Call once during server startup.
  */
 const startWorkers = () => {
-  // ─── Contest Sync Worker ──────────────────────────
+  // ─── Contest Sync Worker (Codeforces only standard contests) ─
   const contestWorker = new Worker(
     QUEUE_NAMES.SYNC_CONTESTS,
     async (job) => {
       logger.info(`[Worker] Processing contest sync job: ${job.id}`, { data: job.data });
-
       const result = await dataSyncService.syncCodeforcesContests();
-
       logger.info(`[Worker] Contest sync job complete: ${job.id}`, result);
       return result;
     },
@@ -39,25 +38,65 @@ const startWorkers = () => {
     }
   );
 
-  // ─── User Rating Sync Worker ──────────────────────
-  const userRatingWorker = new Worker(
-    QUEUE_NAMES.SYNC_USER_RATINGS,
+  // ─── Codeforces Sync Worker ───────────────────────
+  const codeforcesWorker = new Worker(
+    QUEUE_NAMES.SYNC_CODEFORCES,
     async (job) => {
       const { userId, handle } = job.data;
-      logger.info(`[Worker] Processing user rating sync: ${job.id}`, { userId, handle });
-
+      logger.info(`[Worker] Processing Codeforces sync: ${job.id}`, { userId, handle });
+      
+      // Phase D prep: in the future this syncs to UserStats 
+      // For now we can keep the existing codebase working by using dataSyncService
       const result = await dataSyncService.syncUserRatingHistory(userId, handle);
-
-      logger.info(`[Worker] User rating sync complete: ${job.id}`, result);
+      
+      logger.info(`[Worker] Codeforces sync complete: ${job.id}`, result);
       return result;
     },
     {
-      connection: createRedisConnection('worker-user-ratings'),
-      concurrency: 2, // Process 2 user syncs in parallel
-      limiter: {
-        max: 5,
-        duration: 10000, // Max 5 jobs per 10 seconds (rate limit for Codeforces API)
-      },
+      connection: createRedisConnection('worker-codeforces'),
+      concurrency: 2,
+      limiter: { max: 5, duration: 10000 },
+    }
+  );
+
+  // ─── LeetCode Sync Worker ─────────────────────────
+  const leetcodeWorker = new Worker(
+    QUEUE_NAMES.SYNC_LEETCODE,
+    async (job) => {
+      const { userId, handle } = job.data;
+      logger.info(`[Worker] Processing LeetCode sync: ${job.id}`, { userId, handle });
+      
+      // Currently just fetching to warm up cache / log status
+      // (Writes to UserStats will be added in Phase D Task 15)
+      const data = await platformAggregator.fetchSingleProfile('leetcode', handle);
+      if (data.status === 'failed') throw new Error(data.error);
+
+      logger.info(`[Worker] LeetCode sync complete: ${job.id}`);
+      return data;
+    },
+    {
+      connection: createRedisConnection('worker-leetcode'),
+      concurrency: 2,
+    }
+  );
+
+  // ─── CodeChef Sync Worker ─────────────────────────
+  const codechefWorker = new Worker(
+    QUEUE_NAMES.SYNC_CODECHEF,
+    async (job) => {
+      const { userId, handle } = job.data;
+      logger.info(`[Worker] Processing CodeChef sync: ${job.id}`, { userId, handle });
+      
+      // (Writes to UserStats will be added in Phase D Task 15)
+      const data = await platformAggregator.fetchSingleProfile('codechef', handle);
+      if (data.status === 'failed') throw new Error(data.error);
+
+      logger.info(`[Worker] CodeChef sync complete: ${job.id}`);
+      return data;
+    },
+    {
+      connection: createRedisConnection('worker-codechef'),
+      concurrency: 2,
     }
   );
 
@@ -66,9 +105,7 @@ const startWorkers = () => {
     QUEUE_NAMES.SYNC_ALL_USERS,
     async (job) => {
       logger.info(`[Worker] Processing batch sync job: ${job.id}`);
-
       const result = await dataSyncService.syncAllUsers();
-
       logger.info(`[Worker] Batch sync complete: ${job.id}`, {
         synced: result.synced,
         failed: result.failed,
@@ -108,17 +145,15 @@ const startWorkers = () => {
   };
 
   attachEvents(contestWorker, 'ContestSync');
-  attachEvents(userRatingWorker, 'UserRatingSync');
+  attachEvents(codeforcesWorker, 'CodeforcesSync');
+  attachEvents(leetcodeWorker, 'LeetCodeSync');
+  attachEvents(codechefWorker, 'CodeChefSync');
   attachEvents(batchSyncWorker, 'BatchSync');
 
-  workers = [contestWorker, userRatingWorker, batchSyncWorker];
+  workers = [contestWorker, codeforcesWorker, leetcodeWorker, codechefWorker, batchSyncWorker];
 
-  logger.info('BullMQ workers started', {
-    workers: [
-      `${QUEUE_NAMES.SYNC_CONTESTS} (concurrency: 1)`,
-      `${QUEUE_NAMES.SYNC_USER_RATINGS} (concurrency: 2)`,
-      `${QUEUE_NAMES.SYNC_ALL_USERS} (concurrency: 1)`,
-    ],
+  logger.info('BullMQ workers started correctly', {
+    workers: workers.map(w => w.name),
   });
 
   return workers;
