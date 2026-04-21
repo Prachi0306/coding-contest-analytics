@@ -80,27 +80,29 @@ const initQueues = () => {
  * @returns {Promise<Job>}
  */
 const addPlatformSyncJob = async (userId, platform, handle) => {
-  const queueMap = {
-    codeforces: queues.syncCodeforces,
-    leetcode: queues.syncLeetcode,
-    codechef: queues.syncCodechef,
+  let queue = null;
+
+  const getQueue = (p) => {
+    switch (p) {
+      case 'codeforces': return queues.syncCodeforces;
+      case 'leetcode': return queues.syncLeetcode;
+      case 'codechef': return queues.syncCodechef;
+      default: return null;
+    }
   };
 
-  const queue = queueMap[platform];
+  queue = getQueue(platform);
+
   if (!queue) {
     initQueues(); // lazy initialization safety
-    const qMap = {
-      codeforces: queues.syncCodeforces,
-      leetcode: queues.syncLeetcode,
-      codechef: queues.syncCodechef,
-    };
-    if (!qMap[platform]) throw new Error(`Invalid platform for queue: ${platform}`);
+    queue = getQueue(platform);
+    if (!queue) throw new Error(`Invalid platform for queue: ${platform}`);
   }
 
   // Use jobId = userId + platform to prevent duplicates
   const jobId = `${userId}-${platform}`;
 
-  const job = await queueMap[platform].add(
+  const job = await queue.add(
     `sync-${platform}-${handle}`,
     { userId, handle, platform, triggeredAt: new Date().toISOString() },
     { jobId } // Built-in BullMQ duplicate prevention based on jobId

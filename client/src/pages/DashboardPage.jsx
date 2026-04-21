@@ -52,11 +52,14 @@ export default function DashboardPage() {
     setSyncMsg('');
     try {
       await syncAPI.syncMyRatings();
-      setSyncMsg('Sync complete! Refreshing...');
-      await fetchData();
+      setSyncMsg('Sync queued! Refreshing in background...');
+      // Allow workers a moment to process before re-fetching
+      setTimeout(() => {
+        fetchData();
+        setSyncing(false);
+      }, 3000);
     } catch (err) {
       setSyncMsg(err.message || 'Sync failed');
-    } finally {
       setSyncing(false);
     }
   };
@@ -70,7 +73,10 @@ export default function DashboardPage() {
         allEvents.push({
           platform: p.platform,
           timestamp: new Date(c.timestamp).getTime(),
-          rating: c.rating || c.newRating
+          rating: c.rating || c.newRating,
+          contestName: c.contestName,
+          rank: c.rank,
+          contestId: c.contestId || c._id
         });
       }
     });
@@ -94,9 +100,8 @@ export default function DashboardPage() {
     });
   });
 
-  // Find Codeforces data specifically to maintain legacy dashboard widgets until fully migrated
-  const cfData = platforms.find(p => p.platform === 'codeforces');
-  const cfContests = cfData?.contests || [];
+  // Unified Recent Contests table data
+  const recentContests = [...allEvents].reverse().slice(0, 10);
 
   if (loading) {
     return (
@@ -129,7 +134,7 @@ export default function DashboardPage() {
 
         {/* Action Messages */}
         {syncMsg && (
-          <div className={`alert ${syncMsg.includes('fail') ? 'alert--error' : 'alert--success'}`} style={{ marginBottom: '16px' }}>
+          <div className={`alert ${(/fail|error|timeout|exceeded/i).test(syncMsg) ? 'alert--error' : 'alert--success'}`} style={{ marginBottom: '16px' }}>
             {syncMsg}
           </div>
         )}
@@ -262,30 +267,40 @@ export default function DashboardPage() {
             )}
 
             {/* Lower Section: Tables */}
-            <div className="dashboard-columns">
+            <div className="dashboard-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1000px', margin: '0 auto', justifyContent: 'center' }}>
               {/* Recent Contests Table */}
-              {cfContests.length > 0 && (
+              {recentContests.length > 0 && (
                 <div className="card">
                   <div className="card-header">
-                    <h2 className="card-title">Recent CF Contests</h2>
+                    <h2 className="card-title">Recent Contests</h2>
                   </div>
                   <div className="table-wrapper">
                     <table>
                       <thead>
                         <tr>
+                          <th>Platform</th>
                           <th>Contest</th>
                           <th>Rank</th>
                           <th>Rating</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {cfContests.slice(-10).reverse().map((h, i) => (
-                          <tr key={h._id || h.contestId || i}>
+                        {recentContests.map((h, i) => (
+                          <tr key={h.contestId || i}>
+                            <td>
+                              <span className="badge" style={{
+                                backgroundColor: h.platform === 'codeforces' ? 'rgba(99, 102, 241, 0.1)' : h.platform === 'leetcode' ? 'rgba(234, 179, 8, 0.1)' : 'rgba(6, 182, 212, 0.1)',
+                                color: h.platform === 'codeforces' ? '#818cf8' : h.platform === 'leetcode' ? '#fef08a' : '#67e8f9',
+                                textTransform: 'capitalize'
+                              }}>
+                                {h.platform}
+                              </span>
+                            </td>
                             <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {h.contestName}
                             </td>
                             <td>{h.rank}</td>
-                            <td>{h.rating || h.newRating}</td>
+                            <td>{h.rating}</td>
                           </tr>
                         ))}
                       </tbody>

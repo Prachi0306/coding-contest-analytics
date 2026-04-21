@@ -27,7 +27,7 @@ export default function HomePage() {
           margin: '0 auto 40px',
           lineHeight: 1.7,
         }}>
-          Sync your Codeforces ratings, visualize your progress, and compete
+          Sync your LeetCode, Codeforces, and CodeChef ratings, visualize your progress, and compete
           with friends — all in one beautiful dashboard.
         </p>
 
@@ -68,7 +68,7 @@ export default function HomePage() {
             <span style={{ fontSize: '2rem' }}>🔄</span>
             <span className="stat-card__label">Auto Sync</span>
             <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Connect your Codeforces handle and sync your stats with one click.
+              Connect your platform handles and sync all your stats with one click.
             </span>
           </div>
           <div className="stat-card">

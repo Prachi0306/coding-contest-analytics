@@ -184,10 +184,10 @@ class DataSyncService {
       throw AppError.notFound('User not found');
     }
 
-    const handle = user.handles?.codeforces;
+    const handle = user.platformHandles?.codeforces || user.handles?.codeforces;
     if (!handle) {
       throw AppError.badRequest(
-        'No Codeforces handle configured. Please update your profile with a Codeforces handle.'
+        'Please wait for full multi-platform background sync (next feature rollout), or add a Codeforces handle.'
       );
     }
 

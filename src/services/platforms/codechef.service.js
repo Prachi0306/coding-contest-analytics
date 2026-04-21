@@ -78,6 +78,11 @@ async function _requestWithRetry(url, attempt = 0) {
       }
     }
 
+    // Gracefully handle specific API limitations without raw Axios errors
+    if (error.response?.status === 402 || error.response?.status === 429) {
+      throw new Error('CodeChef public API quota exceeded (Rate Limited). Please try syncing again in a few minutes.');
+    }
+
     // Not retryable or retries exhausted
     throw error;
   }
@@ -139,49 +144,74 @@ function _parseSubmissions(data) {
 // ─── Public API ───────────────────────────────────────
 
 /**
- * Fetch full profile data for a CodeChef user.
+ * Fetch full profile data for a CodeChef user natively bypassing the wrapper API.
  *
  * @param {string} handle - CodeChef username
  * @returns {Promise<object>} Standard platform response — NEVER throws
  */
 async function fetchProfile(handle) {
   if (!handle || typeof handle !== 'string' || !handle.trim()) {
-    return _buildResponse({
-      handle: handle || '',
-      status: 'failed',
-      error: 'Invalid or empty CodeChef handle',
-    });
+    return _buildResponse({ handle: handle || '', status: 'failed', error: 'Invalid or empty CodeChef handle' });
   }
 
   const trimmedHandle = handle.trim();
 
   try {
-    // ─── Primary API call ──────────────────────────
-    const data = await _requestWithRetry(`${CODECHEF_API_BASE}/${trimmedHandle}`);
+    const rawHtmlResponse = await axios.get(`https://www.codechef.com/users/${trimmedHandle}`, {
+      timeout: REQUEST_TIMEOUT,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml',
+      }
+    });
 
-    // ─── Handle not found ──────────────────────────
-    if (!data || data.success === false || data.status === 404) {
-      return _buildResponse({
-        handle: trimmedHandle,
-        status: 'failed',
-        error: `CodeChef user "${trimmedHandle}" not found`,
-      });
+    const rawHtml = rawHtmlResponse.data;
+
+    if (!rawHtml || typeof rawHtml !== 'string') {
+        throw new Error('Invalid HTML received from CodeChef');
     }
 
-    // ─── Parse rating ──────────────────────────────
-    const currentRating = parseInt(data.currentRating, 10) || null;
-    const highestRating = parseInt(data.highestRating, 10) || null;
+    let currentRating = null;
+    let highestRating = null;
 
-    // ─── Parse contests ────────────────────────────
-    const contests = _parseContests(data);
+    const ratingMatch = rawHtml.match(/class=["']rating-number["'][^>]*>(\d+)/i);
+    if (ratingMatch) currentRating = parseInt(ratingMatch[1], 10);
+    
+    const maxRatingMatch = rawHtml.match(/Highest Rating\s*(\d+)/i);
+    if (maxRatingMatch) highestRating = parseInt(maxRatingMatch[1], 10);
 
-    // ─── Parse submissions ─────────────────────────
-    const submissions = _parseSubmissions(data);
+    if (currentRating === null && highestRating === null) {
+         throw new Error(`CodeChef user "${trimmedHandle}" not found or layout changed`);
+    }
 
-    // ─── Tags (CodeChef doesn't expose granular tags via public API) ──
-    // We leave them empty — the tag analytics pipeline can fill them later
-    // if we add problem-level scraping.
     const tags = {};
+    const submissions = [];
+    let contests = [];
+    
+    // Attempt to scrape fully solved count natively if available
+    const solvedMatch = rawHtml.match(/Fully Solved\s*\(\s*(\d+)/i);
+    if (solvedMatch) {
+       submissions.push({ difficulty: 'fullySolved', count: parseInt(solvedMatch[1], 10) });
+    }
+
+    // Attempt to accurately scrape the contest rating history bypassing external APIs completely!
+    const historyMatch = rawHtml.match(/var all_rating = (\[.*?\]);/s);
+    if (historyMatch) {
+      try {
+        const ratingData = JSON.parse(historyMatch[1]);
+        contests = ratingData.map((entry) => ({
+          contestName: entry.name || entry.code || 'Unknown',
+          contestCode: entry.code || null,
+          rating: parseInt(entry.rating, 10) || null,
+          rank: parseInt(entry.rank, 10) || null,
+          timestamp: entry.end_date
+            ? new Date(entry.end_date).toISOString()
+            : null,
+        }));
+      } catch (err) {
+        logger.warn(`Codechef failed to parse native contest array for ${trimmedHandle}`);
+      }
+    }
 
     return _buildResponse({
       handle: trimmedHandle,
@@ -192,14 +222,12 @@ async function fetchProfile(handle) {
       tags,
     });
   } catch (error) {
-    logger.error(`CodeChef platform service error for ${trimmedHandle}`, {
-      error: error.message,
-    });
+    logger.error(`CodeChef platform service error for ${trimmedHandle}`, { error: error.message });
 
     return _buildResponse({
       handle: trimmedHandle,
       status: 'failed',
-      error: error.message || 'Unknown CodeChef error',
+      error: 'Codechef public profile blocked by Cloudflare (429) or User not found.',
     });
   }
 }

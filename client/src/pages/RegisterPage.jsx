@@ -10,7 +10,6 @@ export default function RegisterPage() {
     username: '',
     password: '',
     confirmPassword: '',
-    handles: { codeforces: '' },
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,23 +81,6 @@ export default function RegisterPage() {
                 maxLength={30}
                 pattern="^[a-zA-Z0-9_-]+$"
                 title="Username may only contain letters, numbers, underscores, and hyphens"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Codeforces Handle</label>
-              <input
-                id="register-cf-handle"
-                type="text"
-                className="form-input"
-                placeholder="your_cf_handle (optional)"
-                value={form.handles.codeforces}
-                onChange={(e) =>
-                  setForm({ ...form, handles: { ...form.handles, codeforces: e.target.value } })
-                }
-                maxLength={64}
-                pattern="^[a-zA-Z0-9_.-]*$"
-                title="Valid characters: letters, numbers, underscores, dots, hyphens"
               />
             </div>
 

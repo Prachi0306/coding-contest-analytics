@@ -7,11 +7,12 @@ export default function ContestsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [platform, setPlatform] = useState('codeforces');
 
-  const fetchContests = async (p = 1, q = '') => {
+  const fetchContests = async (p = 1, q = '', plat = 'codeforces') => {
     setLoading(true);
     try {
-      const params = { page: p, limit: 20 };
+      const params = { page: p, limit: 20, platform: plat };
       if (q) params.search = q;
       const res = await contestAPI.getContests(params);
       setContests(res.data.contests);
@@ -23,29 +24,58 @@ export default function ContestsPage() {
     }
   };
 
-  useEffect(() => { fetchContests(page, search); }, [page]);
+  useEffect(() => { fetchContests(page, search, platform); }, [page, platform]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchContests(1, search);
+    fetchContests(1, search, platform);
+  };
+
+  const handlePlatformChange = (p) => {
+    setPlatform(p);
+    setPage(1);
+    setSearch('');
   };
 
   return (
     <div className="page">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <h1 className="section-title">Contests</h1>
-            <p className="section-subtitle">{pagination.total.toLocaleString()} Codeforces contests</p>
+            <p className="section-subtitle">{pagination.total.toLocaleString()} {platform} contests</p>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-card)', padding: '6px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <button 
+              className={`btn ${platform === 'codeforces' ? 'btn--primary' : 'btn--outline'} btn--sm`}
+              onClick={() => handlePlatformChange('codeforces')}
+            >
+              Codeforces
+            </button>
+            <button 
+              className={`btn ${platform === 'leetcode' ? 'btn--primary' : 'btn--outline'} btn--sm`}
+              onClick={() => handlePlatformChange('leetcode')}
+              style={{ borderColor: platform === 'leetcode' ? '#eab308' : '', backgroundColor: platform === 'leetcode' ? '#eab308' : '' }}
+            >
+              LeetCode
+            </button>
+            <button 
+              className={`btn ${platform === 'codechef' ? 'btn--primary' : 'btn--outline'} btn--sm`}
+              onClick={() => handlePlatformChange('codechef')}
+              style={{ borderColor: platform === 'codechef' ? '#06b6d4' : '', backgroundColor: platform === 'codechef' ? '#06b6d4' : '' }}
+            >
+              CodeChef
+            </button>
           </div>
 
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px' }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
             <input
               id="contest-search"
               type="text"
               className="form-input"
-              placeholder="Search contests..."
+              placeholder={`Search ${platform} contests...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{ minWidth: '240px' }}
@@ -62,7 +92,7 @@ export default function ContestsPage() {
           <div className="empty-state">
             <div className="empty-state__icon">🏆</div>
             <h2 className="empty-state__title">No contests found</h2>
-            <p>Try a different search term.</p>
+            <p>Try a different search term or platform.</p>
           </div>
         ) : (
           <>
@@ -83,9 +113,9 @@ export default function ContestsPage() {
                       <td style={{ color: 'var(--text-muted)' }}>{c.contestId}</td>
                       <td style={{ fontWeight: 500 }}>{c.name}</td>
                       <td>
-                        <span className="badge badge--info">{c.type}</span>
+                        <span className="badge badge--info">{c.type || 'N/A'}</span>
                       </td>
-                      <td>{c.durationFormatted}</td>
+                      <td>{c.durationFormatted || 'N/A'}</td>
                       <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                         {new Date(c.startTime).toLocaleDateString('en-US', {
                           year: 'numeric', month: 'short', day: 'numeric',

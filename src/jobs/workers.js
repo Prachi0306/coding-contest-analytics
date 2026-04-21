@@ -19,6 +19,33 @@ let workers = [];
  * Call once during server startup.
  */
 const startWorkers = () => {
+const UserStats = require('../models/UserStats');
+
+  // ─── Shared Persistence Helper ──────────────────────
+  const persistPlatformData = async (userId, data) => {
+    if (data.status === 'failed' || !data.contests || data.contests.length === 0) {
+      return 0;
+    }
+    
+    const statsDocs = data.contests.map((entry) => ({
+      userId,
+      platform: data.platform,
+      contestId: String(entry.contestId),
+      contestName: entry.contestName || 'Unknown Contest',
+      rank: entry.rank || 0,
+      oldRating: entry.oldRating || 0,
+      newRating: entry.rating || entry.newRating || 0,
+      ratingChange: entry.ratingChange || 0,
+      timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
+    }));
+
+    const validStats = statsDocs.filter(stat => stat.contestId);
+    if (validStats.length === 0) return 0;
+
+    const result = await UserStats.bulkUpsertStats(validStats);
+    return (result.upsertedCount || 0) + (result.modifiedCount || 0);
+  };
+
   // ─── Contest Sync Worker (Codeforces only standard contests) ─
   const contestWorker = new Worker(
     QUEUE_NAMES.SYNC_CONTESTS,
@@ -31,10 +58,7 @@ const startWorkers = () => {
     {
       connection: createRedisConnection('worker-contests'),
       concurrency: 1, // One contest sync at a time
-      limiter: {
-        max: 1,
-        duration: 60000, // Max 1 job per minute (rate limit)
-      },
+      limiter: { max: 1, duration: 60000 },
     }
   );
 
@@ -45,12 +69,12 @@ const startWorkers = () => {
       const { userId, handle } = job.data;
       logger.info(`[Worker] Processing Codeforces sync: ${job.id}`, { userId, handle });
       
-      // Phase D prep: in the future this syncs to UserStats 
-      // For now we can keep the existing codebase working by using dataSyncService
-      const result = await dataSyncService.syncUserRatingHistory(userId, handle);
-      
-      logger.info(`[Worker] Codeforces sync complete: ${job.id}`, result);
-      return result;
+      const data = await platformAggregator.fetchSingleProfile('codeforces', handle);
+      if (data.status === 'failed') throw new Error(data.error);
+
+      const savedCount = await persistPlatformData(userId, data);
+      logger.info(`[Worker] Codeforces sync complete: ${job.id}`, { savedCount });
+      return data;
     },
     {
       connection: createRedisConnection('worker-codeforces'),
@@ -66,12 +90,11 @@ const startWorkers = () => {
       const { userId, handle } = job.data;
       logger.info(`[Worker] Processing LeetCode sync: ${job.id}`, { userId, handle });
       
-      // Currently just fetching to warm up cache / log status
-      // (Writes to UserStats will be added in Phase D Task 15)
       const data = await platformAggregator.fetchSingleProfile('leetcode', handle);
       if (data.status === 'failed') throw new Error(data.error);
 
-      logger.info(`[Worker] LeetCode sync complete: ${job.id}`);
+      const savedCount = await persistPlatformData(userId, data);
+      logger.info(`[Worker] LeetCode sync complete: ${job.id}`, { savedCount });
       return data;
     },
     {
@@ -87,11 +110,11 @@ const startWorkers = () => {
       const { userId, handle } = job.data;
       logger.info(`[Worker] Processing CodeChef sync: ${job.id}`, { userId, handle });
       
-      // (Writes to UserStats will be added in Phase D Task 15)
       const data = await platformAggregator.fetchSingleProfile('codechef', handle);
       if (data.status === 'failed') throw new Error(data.error);
 
-      logger.info(`[Worker] CodeChef sync complete: ${job.id}`);
+      const savedCount = await persistPlatformData(userId, data);
+      logger.info(`[Worker] CodeChef sync complete: ${job.id}`, { savedCount });
       return data;
     },
     {

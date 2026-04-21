@@ -22,15 +22,14 @@ export default function Navbar() {
         </Link>
 
         <div className="navbar-links">
-          <Link to="/contests" className={isActive('/contests')}>
-            Contests
-          </Link>
-          <Link to="/leaderboard" className={isActive('/leaderboard')}>
-            Leaderboard
-          </Link>
-
           {user ? (
             <>
+              <Link to="/contests" className={isActive('/contests')}>
+                Contests
+              </Link>
+              <Link to="/leaderboard" className={isActive('/leaderboard')}>
+                Leaderboard
+              </Link>
               <Link to="/dashboard" className={isActive('/dashboard')}>
                 Dashboard
               </Link>
