@@ -74,6 +74,97 @@ class DataSyncService {
     }
   }
 
+  /**
+   * Sync LeetCode global contests.
+   */
+  async syncLeetCodeContests() {
+    logger.info('Starting LeetCode contest sync...');
+    try {
+      const axios = require('axios');
+      const query = `
+        query {
+          topTwoContests { title titleSlug startTime duration }
+          pastContests(pageNo: 1, numPerPage: 50) {
+            data { title titleSlug startTime duration }
+          }
+        }
+      `;
+      const res = await axios.post('https://leetcode.com/graphql', { query }, { timeout: 10000 });
+      const topTwo = res.data?.data?.topTwoContests || [];
+      const past = res.data?.data?.pastContests?.data || [];
+      
+      const allContests = [...topTwo, ...past];
+      if (allContests.length === 0) return { synced: 0, total: 0 };
+
+      const contestDocs = allContests.map((c) => {
+        const startTime = new Date(c.startTime * 1000);
+        const now = new Date();
+        const endTime = new Date(startTime.getTime() + c.duration * 1000);
+        
+        let phase = 'FINISHED';
+        if (now < startTime) phase = 'BEFORE';
+        else if (now >= startTime && now <= endTime) phase = 'CODING';
+
+        return {
+          platform: 'leetcode',
+          contestId: c.titleSlug,
+          name: c.title,
+          type: 'OTHER',
+          phase,
+          startTime,
+          duration: c.duration,
+        };
+      });
+
+      const result = await Contest.bulkUpsertContests(contestDocs);
+      return { synced: (result.upsertedCount || 0) + (result.modifiedCount || 0), total: contestDocs.length };
+    } catch (error) {
+      logger.error('LeetCode contest sync failed', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Sync CodeChef global contests.
+   */
+  async syncCodeChefContests() {
+    logger.info('Starting CodeChef contest sync...');
+    try {
+      const axios = require('axios');
+      const res = await axios.get('https://www.codechef.com/api/list/contests/all', { timeout: 10000 });
+      
+      const future = res.data?.future_contests || [];
+      const present = res.data?.present_contests || [];
+      const past = res.data?.past_contests || [];
+
+      const mapCcContest = (c, phase) => {
+        return {
+          platform: 'codechef',
+          contestId: c.contest_code,
+          name: c.contest_name,
+          type: 'OTHER',
+          phase,
+          startTime: new Date(c.contest_start_date_iso),
+          duration: parseInt(c.contest_duration, 10) * 60, // minutes to seconds
+        };
+      };
+
+      const contestDocs = [
+        ...future.map(c => mapCcContest(c, 'BEFORE')),
+        ...present.map(c => mapCcContest(c, 'CODING')),
+        ...past.map(c => mapCcContest(c, 'FINISHED')),
+      ];
+
+      if (contestDocs.length === 0) return { synced: 0, total: 0 };
+
+      const result = await Contest.bulkUpsertContests(contestDocs);
+      return { synced: (result.upsertedCount || 0) + (result.modifiedCount || 0), total: contestDocs.length };
+    } catch (error) {
+      logger.error('CodeChef contest sync failed', { error: error.message });
+      throw error;
+    }
+  }
+
   // ─── User Rating History Sync ──────────────────────
 
   /**
