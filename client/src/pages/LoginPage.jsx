@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,19 +33,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="card form-card">
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '4px' }}>Welcome back</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '24px' }}>
-            Sign in to your account
-          </p>
+    <div className="login-layout">
+      {/* Left — Form Side */}
+      <div className="login-form-side">
+        <div className="login-card">
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '28px' }}>
+              <span style={{ fontSize: '1.5rem', filter: 'drop-shadow(0 0 8px rgba(124,92,252,0.5))' }}>⚡</span>
+              <span style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontSize: '1.2rem',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #eef2ff, #a78bfa)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>CodeContest Analytics</span>
+            </div>
+            <h1>Login to Your Account</h1>
+            <p className="login-subtitle">Enter your credentials to access your dashboard</p>
+          </div>
 
           {error && <div className="alert alert--error">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">Email</label>
+              <label className="form-label">Email Address</label>
               <input
                 id="login-email"
                 type="email"
@@ -69,21 +83,92 @@ export default function LoginPage() {
               />
             </div>
 
+            <div className="login-extras">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ accentColor: 'var(--accent-primary)' }}
+                />
+                Remember Me
+              </label>
+              <a href="#" style={{ fontSize: '0.82rem' }}>Forgot Password?</a>
+            </div>
+
             <button
               id="login-submit"
               type="submit"
               className="btn btn--primary btn--lg"
-              style={{ width: '100%', marginTop: '8px' }}
+              style={{ width: '100%' }}
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? '⏳ Signing in...' : 'Login'}
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+          <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             Don't have an account?{' '}
-            <Link to="/register" style={{ fontWeight: 600 }}>Sign up</Link>
+            <Link to="/register" style={{ fontWeight: 600 }}>Sign Up</Link>
           </p>
+        </div>
+      </div>
+
+      {/* Right — Visual / Illustration Side */}
+      <div className="login-visual-side">
+        <div className="login-visual-content">
+          <div style={{
+            width: '120px',
+            height: '120px',
+            margin: '0 auto 24px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(108,92,231,0.2), rgba(168,85,247,0.1))',
+            border: '1px solid rgba(124,92,252,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '3.5rem',
+          }}>
+            🏆
+          </div>
+
+          <h2>CodeContest Analytics</h2>
+          <p style={{ margin: '0 auto' }}>
+            Track ratings across Codeforces, LeetCode & CodeChef. Visualize your growth and compete globally.
+          </p>
+
+          {/* Mini stats preview */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '12px',
+            marginTop: '32px',
+            maxWidth: '300px',
+            margin: '32px auto 0',
+          }}>
+            {[
+              { value: '11,450', label: 'Active Users', color: '#a78bfa' },
+              { value: '6,990', label: 'Contests Tracked', color: '#f0a030' },
+              { value: '3.2M', label: 'Submissions', color: '#34d399' },
+              { value: '150+', label: 'Countries', color: '#22d3ee' },
+            ].map((s, i) => (
+              <div key={i} style={{
+                background: 'rgba(15, 20, 45, 0.6)',
+                border: '1px solid rgba(124,92,252,0.12)',
+                borderRadius: '12px',
+                padding: '14px',
+                textAlign: 'center',
+              }}>
+                <div style={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '1.3rem',
+                  fontWeight: 800,
+                  color: s.color,
+                }}>{s.value}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

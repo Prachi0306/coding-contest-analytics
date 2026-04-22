@@ -10,15 +10,18 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path ? 'nav-link active' : 'nav-link';
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    if (window.confirm('Are you sure you want to logout?')) {
+      logout();
+      navigate('/login');
+    }
   };
 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
         <Link to="/" className="navbar-brand">
-          <span>⚡</span> CodeContest Analytics
+          <span>⚡</span>
+          <span>Code</span><span className="brand-highlight">Contest</span>&nbsp;Analytics
         </Link>
 
         <div className="navbar-links">

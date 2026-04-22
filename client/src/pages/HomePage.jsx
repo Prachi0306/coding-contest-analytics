@@ -6,77 +6,63 @@ export default function HomePage() {
 
   return (
     <div className="page">
-      <div className="container" style={{ textAlign: 'center', paddingTop: '80px' }}>
-        <h1 style={{
-          fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-          fontWeight: 800,
-          lineHeight: 1.1,
-          marginBottom: '16px',
-          background: 'var(--accent-gradient)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}>
-          Track your competitive<br />programming journey
-        </h1>
+      <div className="container">
+        {/* Hero */}
+        <div className="hero-section">
+          <h1 className="hero-title">
+            Track your competitive<br />programming journey
+          </h1>
+          <p className="hero-subtitle">
+            Sync your LeetCode, Codeforces, and CodeChef ratings, visualize your progress, and compete with friends — all in one beautiful dashboard.
+          </p>
 
-        <p style={{
-          fontSize: '1.125rem',
-          color: 'var(--text-secondary)',
-          maxWidth: '560px',
-          margin: '0 auto 40px',
-          lineHeight: 1.7,
-        }}>
-          Sync your LeetCode, Codeforces, and CodeChef ratings, visualize your progress, and compete
-          with friends — all in one beautiful dashboard.
-        </p>
-
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          {user ? (
-            <Link to="/dashboard" className="btn btn--primary btn--lg">
-              Open Dashboard →
-            </Link>
-          ) : (
-            <>
-              <Link to="/register" className="btn btn--primary btn--lg">
-                Get Started — Free
+          <div className="hero-actions">
+            {user ? (
+              <Link to="/dashboard" className="btn btn--primary btn--lg">
+                Open Dashboard →
               </Link>
-              <Link to="/contests" className="btn btn--secondary btn--lg">
-                Browse Contests
-              </Link>
-            </>
-          )}
+            ) : (
+              <>
+                <Link to="/register" className="btn btn--primary btn--lg">
+                  🚀 Get Started — Free
+                </Link>
+                <Link to="/contests" className="btn btn--secondary btn--lg">
+                  Browse Contests
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Feature cards */}
-        <div className="stats-grid" style={{ marginTop: '80px', textAlign: 'left' }}>
-          <div className="stat-card">
-            <span style={{ fontSize: '2rem' }}>📈</span>
-            <span className="stat-card__label">Rating History</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Interactive charts showing your rating over time with detailed contest breakdowns.
-            </span>
+        {/* Feature Cards */}
+        <div className="feature-grid">
+          <div className="feature-card">
+            <div className="feature-card__icon">📈</div>
+            <h3 className="feature-card__title">Rating History</h3>
+            <p className="feature-card__desc">
+              Interactive multi-platform charts showing your rating trajectory with detailed contest breakdowns.
+            </p>
           </div>
-          <div className="stat-card">
-            <span style={{ fontSize: '2rem' }}>🏆</span>
-            <span className="stat-card__label">Leaderboard</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              See how you rank against other users on the platform. Compete and climb.
-            </span>
+          <div className="feature-card">
+            <div className="feature-card__icon">🏆</div>
+            <h3 className="feature-card__title">Global Leaderboard</h3>
+            <p className="feature-card__desc">
+              See how you rank against other competitive programmers. Compete, climb, and dominate.
+            </p>
           </div>
-          <div className="stat-card">
-            <span style={{ fontSize: '2rem' }}>🔄</span>
-            <span className="stat-card__label">Auto Sync</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Connect your platform handles and sync all your stats with one click.
-            </span>
+          <div className="feature-card">
+            <div className="feature-card__icon">🔄</div>
+            <h3 className="feature-card__title">Auto Sync</h3>
+            <p className="feature-card__desc">
+              Connect your platform handles and sync all your contest stats with one click.
+            </p>
           </div>
-          <div className="stat-card">
-            <span style={{ fontSize: '2rem' }}>📊</span>
-            <span className="stat-card__label">Deep Analytics</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Best rank, average rank, win rate, rating streaks, and much more.
-            </span>
+          <div className="feature-card">
+            <div className="feature-card__icon">📊</div>
+            <h3 className="feature-card__title">Deep Analytics</h3>
+            <p className="feature-card__desc">
+              Best rank, average rank, win rate, rating streaks, problems solved, and much more.
+            </p>
           </div>
         </div>
       </div>

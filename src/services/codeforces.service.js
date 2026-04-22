@@ -179,9 +179,9 @@ class CodeforcesService {
   async getContestList(gym = false) {
     const result = await this._request('/contest.list', { gym });
 
-    // Normalize and return only finished contests
+    // Normalize and return finished, ongoing, and upcoming contests
     return result
-      .filter((contest) => contest.phase === 'FINISHED')
+      .filter((contest) => ['FINISHED', 'BEFORE', 'CODING'].includes(contest.phase))
       .map((contest) => this._normalizeContest(contest));
   }
 

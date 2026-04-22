@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { contestAPI } from '../api';
 
+const PLATFORM_CONFIG = {
+  codeforces: { label: 'Codeforces', color: '#a78bfa', icon: '🟣' },
+  leetcode: { label: 'LeetCode', color: '#f0a030', icon: '🟡' },
+  codechef: { label: 'CodeChef', color: '#22d3ee', icon: '🔵' },
+};
+
 export default function ContestsPage() {
   const [contests, setContests] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -38,50 +44,68 @@ export default function ContestsPage() {
     setSearch('');
   };
 
+  const formatDuration = (contest) => {
+    if (contest.durationFormatted) return contest.durationFormatted;
+    if (contest.durationSeconds) {
+      const hours = Math.floor(contest.durationSeconds / 3600);
+      const mins = Math.floor((contest.durationSeconds % 3600) / 60);
+      return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    }
+    return 'N/A';
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const currentPlatform = PLATFORM_CONFIG[platform];
+
   return (
     <div className="page">
       <div className="container">
-        <div className="section-header" style={{ flexWrap: 'wrap', gap: '16px' }}>
+        {/* Header */}
+        <div className="contests-header">
           <div>
-            <h1 className="section-title">Contests</h1>
-            <p className="section-subtitle">{pagination.total.toLocaleString()} {platform} contests</p>
+            <h1>Contests Tracker</h1>
+            <p className="subtitle">Track and monitor your ongoing and upcoming programming contests.</p>
           </div>
-          
-          <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-card)', padding: '6px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <button 
-              className={`btn ${platform === 'codeforces' ? 'btn--primary' : 'btn--outline'} btn--sm`}
-              onClick={() => handlePlatformChange('codeforces')}
-            >
-              Codeforces
-            </button>
-            <button 
-              className={`btn ${platform === 'leetcode' ? 'btn--primary' : 'btn--outline'} btn--sm`}
-              onClick={() => handlePlatformChange('leetcode')}
-              style={{ borderColor: platform === 'leetcode' ? '#eab308' : '', backgroundColor: platform === 'leetcode' ? '#eab308' : '' }}
-            >
-              LeetCode
-            </button>
-            <button 
-              className={`btn ${platform === 'codechef' ? 'btn--primary' : 'btn--outline'} btn--sm`}
-              onClick={() => handlePlatformChange('codechef')}
-              style={{ borderColor: platform === 'codechef' ? '#06b6d4' : '', backgroundColor: platform === 'codechef' ? '#06b6d4' : '' }}
-            >
-              CodeChef
-            </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '2rem' }}>🏆</span>
+          </div>
+        </div>
+
+        {/* Toolbar: Platform Filters + Search */}
+        <div className="contests-toolbar">
+          <div className="platform-filters">
+            {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => (
+              <button
+                key={key}
+                className={`platform-pill ${key} ${platform === key ? 'active' : ''}`}
+                onClick={() => handlePlatformChange(key)}
+              >
+                <span className={`platform-pill__dot ${key}`} />
+                {cfg.label}
+              </button>
+            ))}
           </div>
 
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+          <form onSubmit={handleSearch} className="search-box">
             <input
               id="contest-search"
               type="text"
-              className="form-input"
-              placeholder={`Search ${platform} contests...`}
+              placeholder={`🔍 Search ${currentPlatform.label} contests...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ minWidth: '240px' }}
             />
-            <button type="submit" className="btn btn--secondary">Search</button>
+            <button type="submit">Search</button>
           </form>
+        </div>
+
+        {/* Contest count */}
+        <div style={{ marginBottom: '16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          {pagination.total.toLocaleString()} {currentPlatform.label} contests
         </div>
 
         {loading ? (
@@ -96,37 +120,47 @@ export default function ContestsPage() {
           </div>
         ) : (
           <>
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Duration</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contests.map((c) => (
-                    <tr key={c._id}>
-                      <td style={{ color: 'var(--text-muted)' }}>{c.contestId}</td>
-                      <td style={{ fontWeight: 500 }}>{c.name}</td>
-                      <td>
-                        <span className="badge badge--info">{c.type || 'N/A'}</span>
-                      </td>
-                      <td>{c.durationFormatted || 'N/A'}</td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                        {new Date(c.startTime).toLocaleDateString('en-US', {
-                          year: 'numeric', month: 'short', day: 'numeric',
-                        })}
-                      </td>
+            {/* Contests Table */}
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="table-wrapper" style={{ border: 'none', borderRadius: 'var(--radius-lg)' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Platform</th>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Duration</th>
+                      <th>Date</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {contests.map((c) => (
+                      <tr key={c._id}>
+                        <td>
+                          <span className={`badge badge--${platform}`}>
+                            {currentPlatform.icon} {currentPlatform.label}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                          {c.name}
+                        </td>
+                        <td>
+                          <span className="badge badge--info">{c.type || 'N/A'}</span>
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)' }}>
+                          ⏱ {formatDuration(c)}
+                        </td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                          📅 {formatDate(c.startTime)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
+            {/* Pagination */}
             <div className="pagination">
               <button
                 className="btn btn--secondary btn--sm"
@@ -135,9 +169,33 @@ export default function ContestsPage() {
               >
                 ← Prev
               </button>
-              <span className="pagination__info">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
+              
+              {/* Page numbers */}
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`btn btn--sm ${pageNum === page ? 'btn--primary' : 'btn--outline'}`}
+                      onClick={() => setPage(pageNum)}
+                      style={{ minWidth: '36px' }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
               <button
                 className="btn btn--secondary btn--sm"
                 disabled={page >= pagination.totalPages}

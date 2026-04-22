@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { platformsAPI } from '../api';
 import useAuthStore from '../store/authStore';
 
+const PLATFORMS = [
+  { key: 'codeforces', label: 'Codeforces', icon: '🟣', color: '#a78bfa', placeholder: 'e.g. tourist' },
+  { key: 'leetcode', label: 'LeetCode', icon: '🟡', color: '#f0a030', placeholder: 'e.g. neetcode' },
+  { key: 'codechef', label: 'CodeChef', icon: '🔵', color: '#22d3ee', placeholder: 'e.g. codechef_master' },
+];
+
 export default function ConnectPlatformsPage() {
   const navigate = useNavigate();
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -13,7 +19,6 @@ export default function ConnectPlatformsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Fetch current status so the form reflects already connected platforms
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -26,7 +31,6 @@ export default function ConnectPlatformsPage() {
         });
       } catch (err) {
         console.error('Failed to fetch platform status:', err);
-        // Not setting blocking error so user can still try to connect
       } finally {
         setLoading(false);
       }
@@ -39,7 +43,6 @@ export default function ConnectPlatformsPage() {
     setError('');
     setSuccess('');
 
-    // Require at least one handle
     if (!form.codeforces.trim() && !form.leetcode.trim() && !form.codechef.trim()) {
       setError('Please provide at least one platform handle to continue.');
       return;
@@ -49,10 +52,7 @@ export default function ConnectPlatformsPage() {
     try {
       await platformsAPI.connect(form);
       setSuccess('Platforms connected successfully! Redirecting...');
-      
-      // Re-check auth to update the global `user.platformHandles` state
       await checkAuth();
-      
       setTimeout(() => {
         navigate('/dashboard');
       }, 1000);
@@ -77,59 +77,72 @@ export default function ConnectPlatformsPage() {
 
   return (
     <div className="page">
-      <div className="container">
-        <div className="card form-card">
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '4px' }}>
-            Connect Platforms
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '24px' }}>
-            Link your competitive programming profiles to track your stats in one place. You can leave fields blank.
-          </p>
+      <div className="container" style={{ maxWidth: '560px', margin: '0 auto', padding: '0 24px' }}>
+        <div className="card" style={{ padding: '36px 32px' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              margin: '0 auto 20px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(108,92,231,0.15), rgba(168,85,247,0.08))',
+              border: '1px solid rgba(124,92,252,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '2.2rem',
+            }}>
+              🔗
+            </div>
+            <h1 style={{
+              fontFamily: "'Outfit', sans-serif",
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              marginBottom: '6px',
+              background: 'linear-gradient(135deg, #eef2ff, #c4b5fd)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+              Connect Your Platforms
+            </h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.5 }}>
+              Link your competitive programming profiles to track your stats in one place.
+            </p>
+          </div>
 
           {error && <div className="alert alert--error">{error}</div>}
           {success && <div className="alert alert--success">{success}</div>}
 
           <form onSubmit={handleSubmit}>
-            {/* Codeforces */}
-            <div className="form-group">
-              <label className="form-label">Codeforces Handle</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. tourist"
-                value={form.codeforces}
-                onChange={(e) => setForm({ ...form, codeforces: e.target.value })}
-                maxLength={64}
-              />
-            </div>
+            {PLATFORMS.map((p) => (
+              <div key={p.key} className="form-group" style={{ marginBottom: '20px' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{p.icon}</span>
+                  <span style={{ color: p.color, fontWeight: 600 }}>{p.label}</span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Handle</span>
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder={p.placeholder}
+                  value={form[p.key]}
+                  onChange={(e) => setForm({ ...form, [p.key]: e.target.value })}
+                  maxLength={64}
+                  style={{
+                    borderColor: form[p.key] ? `${p.color}40` : undefined,
+                  }}
+                />
+                {form[p.key] && (
+                  <div style={{ fontSize: '0.72rem', color: p.color, marginTop: '2px' }}>
+                    ✓ Handle entered
+                  </div>
+                )}
+              </div>
+            ))}
 
-            {/* LeetCode */}
-            <div className="form-group">
-              <label className="form-label">LeetCode Handle</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. neetcode"
-                value={form.leetcode}
-                onChange={(e) => setForm({ ...form, leetcode: e.target.value })}
-                maxLength={64}
-              />
-            </div>
-
-            {/* CodeChef */}
-            <div className="form-group">
-              <label className="form-label">CodeChef Handle</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. codechef_master"
-                value={form.codechef}
-                onChange={(e) => setForm({ ...form, codechef: e.target.value })}
-                maxLength={64}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '28px' }}>
               <button
                 type="button"
                 className="btn btn--outline btn--lg"
@@ -145,7 +158,7 @@ export default function ConnectPlatformsPage() {
                 style={{ flex: 2 }}
                 disabled={saving}
               >
-                {saving ? 'Connecting...' : 'Connect Accounts'}
+                {saving ? '⏳ Connecting...' : '🔗 Connect Accounts'}
               </button>
             </div>
           </form>

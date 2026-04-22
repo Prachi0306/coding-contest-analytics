@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
 import { platformsAPI, statsAPI, syncAPI } from '../api';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+
+const PLATFORM_COLORS = {
+  codeforces: { main: '#a78bfa', bg: 'rgba(108, 92, 231, 0.12)', border: 'rgba(108, 92, 231, 0.3)', label: 'Codeforces' },
+  leetcode: { main: '#f0a030', bg: 'rgba(240, 160, 48, 0.12)', border: 'rgba(240, 160, 48, 0.3)', label: 'LeetCode' },
+  codechef: { main: '#22d3ee', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.3)', label: 'CodeChef' },
+};
+
+const DONUT_COLORS = ['#a78bfa', '#f0a030', '#22d3ee', '#34d399', '#f87171', '#fbbf24', '#fb923c', '#818cf8'];
 
 export default function DashboardPage() {
   const user = useAuthStore(state => state.user);
   
-  // Data State
   const [platforms, setPlatforms] = useState([]);
   const [failedPlatforms, setFailedPlatforms] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   
-  // UI State
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
-  // Graph Toggle State
   const [visibleGraphs, setVisibleGraphs] = useState({
     codeforces: true,
     leetcode: true,
@@ -53,7 +58,6 @@ export default function DashboardPage() {
     try {
       await syncAPI.syncMyRatings();
       setSyncMsg('Sync queued! Refreshing in background...');
-      // Allow workers a moment to process before re-fetching
       setTimeout(() => {
         fetchData();
         setSyncing(false);
@@ -65,7 +69,6 @@ export default function DashboardPage() {
   };
 
   // --- Graph Normalization ---
-  // 1. Gather all events
   const allEvents = [];
   platforms.forEach(p => {
     (p.contests || []).forEach(c => {
@@ -82,10 +85,8 @@ export default function DashboardPage() {
     });
   });
 
-  // 2. Sort chronologically
   allEvents.sort((a, b) => a.timestamp - b.timestamp);
 
-  // 3. Build unified chart data safely
   const chartData = [];
   let lastRatings = { codeforces: null, leetcode: null, codechef: null };
 
@@ -93,15 +94,30 @@ export default function DashboardPage() {
     lastRatings[event.platform] = event.rating;
     chartData.push({
       timestamp: event.timestamp,
-      name: new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      name: new Date(event.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       codeforces: lastRatings.codeforces,
       leetcode: lastRatings.leetcode,
       codechef: lastRatings.codechef,
     });
   });
 
-  // Unified Recent Contests table data
-  const recentContests = [...allEvents].reverse().slice(0, 10);
+  const recentContests = [...allEvents].reverse().slice(0, 8);
+
+  // Donut chart data — contests per platform
+  const contestsPerPlatform = platforms.map(p => ({
+    name: PLATFORM_COLORS[p.platform]?.label || p.platform,
+    value: (p.contests || []).length,
+    platform: p.platform,
+  })).filter(d => d.value > 0);
+
+  // Calculate total contests across all platforms
+  const totalContests = platforms.reduce((sum, p) => sum + (p.contests || []).length, 0);
+
+  // Find user's leaderboard rank
+  const userRank = leaderboard.findIndex(u => u.userId === user?.id) + 1;
+
+  // Compute max rating across all platforms
+  const maxRating = platforms.reduce((max, p) => Math.max(max, p.maxRating || 0), 0);
 
   if (loading) {
     return (
@@ -117,32 +133,47 @@ export default function DashboardPage() {
   return (
     <div className="page">
       <div className="container">
-        {/* Header */}
-        <div className="section-header">
-          <div>
-            <h1 className="section-title">Dashboard</h1>
-            <p className="section-subtitle">Welcome back, {user?.username} 👋</p>
+        {/* Profile Hero */}
+        <div className="card" style={{ marginBottom: 'var(--space-xl)', padding: '28px 32px' }}>
+          <div className="profile-hero" style={{ marginBottom: 0 }}>
+            <div className="profile-avatar">
+              👤
+            </div>
+            <div className="profile-info">
+              <h1>{user?.username || 'User'}</h1>
+              <p className="profile-subtitle">
+                Max: {maxRating > 0 ? maxRating.toLocaleString() : '—'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              {userRank > 0 && (
+                <div className="profile-rank">
+                  <div className="rank-label">Global Rank</div>
+                  <div className="rank-number">#{userRank}</div>
+                </div>
+              )}
+              <button
+                className="btn btn--primary"
+                onClick={handleSync}
+                disabled={syncing || platforms.length === 0}
+              >
+                {syncing ? '⏳ Syncing...' : '🔄 Sync Data'}
+              </button>
+            </div>
           </div>
-          <button
-            className="btn btn--primary"
-            onClick={handleSync}
-            disabled={syncing || platforms.length === 0}
-          >
-            {syncing ? '⏳ Syncing...' : '🔄 Sync Data'}
-          </button>
         </div>
 
-        {/* Action Messages */}
+        {/* Sync Messages */}
         {syncMsg && (
-          <div className={`alert ${(/fail|error|timeout|exceeded/i).test(syncMsg) ? 'alert--error' : 'alert--success'}`} style={{ marginBottom: '16px' }}>
+          <div className={`alert ${(/fail|error|timeout|exceeded/i).test(syncMsg) ? 'alert--error' : 'alert--success'}`}>
             {syncMsg}
           </div>
         )}
 
-        {/* Failed Platforms Warning Box - FAULT TOLERANCE UI */}
+        {/* Failed Platforms Warning */}
         {failedPlatforms.length > 0 && (
           <div className="alert alert--warning" style={{ marginBottom: '24px' }}>
-            <strong>Warning:</strong> The following platforms failed to sync and their data is not displayed:
+            <strong>⚠️ Warning:</strong> The following platforms failed to sync:
             <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
               {failedPlatforms.map((fp, idx) => (
                 <li key={idx}>
@@ -161,104 +192,153 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Stats Grid */}
-            <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
-              {platforms.map(platform => (
-                <div key={platform.platform} className="stat-card" style={{ borderLeft: `4px solid var(--accent-${platform.platform === 'codeforces' ? 'primary' : platform.platform === 'leetcode' ? 'yellow' : 'cyan'})` }}>
-                  <span className="stat-card__label" style={{textTransform: 'capitalize'}}>{platform.platform} Rating</span>
-                  <span className="stat-card__value stat-card__value--accent">
-                    {platform.rating ?? '—'}
-                  </span>
-                  <span className="stat-card__sub">Max: {platform.maxRating ?? '—'}</span>
+            {/* Stats Row */}
+            <div className="card" style={{ marginBottom: 'var(--space-xl)', padding: '24px 32px' }}>
+              <div className="dashboard-stats-row" style={{ marginBottom: 0 }}>
+                {platforms.map(platform => {
+                  const pc = PLATFORM_COLORS[platform.platform] || {};
+                  return (
+                    <div key={platform.platform} className="dash-stat">
+                      <div className="dash-stat__value" style={{ color: pc.main }}>
+                        {platform.rating ?? '—'}
+                      </div>
+                      <div className="dash-stat__label" style={{ textTransform: 'capitalize' }}>
+                        {platform.platform} Rating
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="dash-stat">
+                  <div className="dash-stat__value" style={{ color: '#34d399' }}>
+                    {maxRating > 0 ? maxRating.toLocaleString() : '—'}
+                  </div>
+                  <div className="dash-stat__label">Highest Rating</div>
                 </div>
-              ))}
+                <div className="dash-stat">
+                  <div className="dash-stat__value" style={{ color: '#fbbf24' }}>
+                    {totalContests}
+                  </div>
+                  <div className="dash-stat__label">Contests Played</div>
+                </div>
+              </div>
             </div>
 
             {/* Rating Chart (Multi-Platform) */}
             {chartData.length > 0 && (
               <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
-                <div className="card-header" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div className="card-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
                   <div>
                     <h2 className="card-title">Multi-Platform Rating History</h2>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       {chartData.length} total contests
                     </span>
                   </div>
-                  {/* Graph Toggles */}
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
+                  <div className="graph-toggles" style={{ marginLeft: 'auto' }}>
                     {platforms.some(p => p.platform === 'codeforces') && (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                        <input type="checkbox" checked={visibleGraphs.codeforces} onChange={() => toggleGraph('codeforces')} />
-                        <span style={{ color: '#6366f1', fontWeight: 600 }}>Codeforces</span>
-                      </label>
+                      <button
+                        className={`graph-toggle codeforces ${visibleGraphs.codeforces ? 'active' : ''}`}
+                        onClick={() => toggleGraph('codeforces')}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a78bfa', display: 'inline-block' }} />
+                        Codeforces
+                      </button>
                     )}
                     {platforms.some(p => p.platform === 'leetcode') && (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                        <input type="checkbox" checked={visibleGraphs.leetcode} onChange={() => toggleGraph('leetcode')} />
-                        <span style={{ color: '#eab308', fontWeight: 600 }}>LeetCode</span>
-                      </label>
+                      <button
+                        className={`graph-toggle leetcode ${visibleGraphs.leetcode ? 'active' : ''}`}
+                        onClick={() => toggleGraph('leetcode')}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f0a030', display: 'inline-block' }} />
+                        LeetCode
+                      </button>
                     )}
                     {platforms.some(p => p.platform === 'codechef') && (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                        <input type="checkbox" checked={visibleGraphs.codechef} onChange={() => toggleGraph('codechef')} />
-                        <span style={{ color: '#06b6d4', fontWeight: 600 }}>CodeChef</span>
-                      </label>
+                      <button
+                        className={`graph-toggle codechef ${visibleGraphs.codechef ? 'active' : ''}`}
+                        onClick={() => toggleGraph('codechef')}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22d3ee', display: 'inline-block' }} />
+                        CodeChef
+                      </button>
                     )}
                   </div>
                 </div>
                 <ResponsiveContainer width="100%" height={340}>
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(99,102,241,0.1)" />
+                    <defs>
+                      <linearGradient id="cfGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#6c5ce7" />
+                        <stop offset="100%" stopColor="#a78bfa" />
+                      </linearGradient>
+                      <linearGradient id="lcGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#e09000" />
+                        <stop offset="100%" stopColor="#f0c060" />
+                      </linearGradient>
+                      <linearGradient id="ccGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#0891b2" />
+                        <stop offset="100%" stopColor="#22d3ee" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(124,92,252,0.08)" />
                     <XAxis
                       dataKey="name"
-                      tick={{ fill: '#64748b', fontSize: 11 }}
+                      tick={{ fill: '#5a6a85', fontSize: 11 }}
                       interval={Math.ceil(chartData.length / 8)}
+                      axisLine={{ stroke: 'rgba(124,92,252,0.1)' }}
+                      tickLine={false}
                     />
-                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} domain={['auto', 'auto']} />
+                    <YAxis
+                      tick={{ fill: '#5a6a85', fontSize: 11 }}
+                      domain={['auto', 'auto']}
+                      axisLine={{ stroke: 'rgba(124,92,252,0.1)' }}
+                      tickLine={false}
+                    />
                     <Tooltip
                       contentStyle={{
-                        background: '#1a1f2e',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: '10px',
-                        color: '#f1f5f9',
-                        fontSize: '0.85rem',
+                        background: 'rgba(15, 20, 45, 0.95)',
+                        border: '1px solid rgba(124,92,252,0.2)',
+                        borderRadius: '12px',
+                        color: '#eef2ff',
+                        fontSize: '0.82rem',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                        backdropFilter: 'blur(12px)',
                       }}
                     />
                     <Legend />
                     {visibleGraphs.codeforces && (
                       <Line
-                        type="stepAfter"
+                        type="monotone"
                         dataKey="codeforces"
                         name="Codeforces"
-                        stroke="#6366f1"
-                        strokeWidth={2}
+                        stroke="url(#cfGrad)"
+                        strokeWidth={2.5}
                         dot={false}
                         connectNulls={false}
-                        activeDot={{ r: 5, fill: '#818cf8' }}
+                        activeDot={{ r: 5, fill: '#a78bfa', stroke: '#6c5ce7', strokeWidth: 2 }}
                       />
                     )}
                     {visibleGraphs.leetcode && (
                       <Line
-                        type="stepAfter"
+                        type="monotone"
                         dataKey="leetcode"
                         name="LeetCode"
-                        stroke="#eab308"
-                        strokeWidth={2}
+                        stroke="url(#lcGrad)"
+                        strokeWidth={2.5}
                         dot={false}
                         connectNulls={false}
-                        activeDot={{ r: 5, fill: '#fef08a' }}
+                        activeDot={{ r: 5, fill: '#f0c060', stroke: '#e09000', strokeWidth: 2 }}
                       />
                     )}
                     {visibleGraphs.codechef && (
                       <Line
-                        type="stepAfter"
+                        type="monotone"
                         dataKey="codechef"
                         name="CodeChef"
-                        stroke="#06b6d4"
-                        strokeWidth={2}
+                        stroke="url(#ccGrad)"
+                        strokeWidth={2.5}
                         dot={false}
                         connectNulls={false}
-                        activeDot={{ r: 5, fill: '#67e8f9' }}
+                        activeDot={{ r: 5, fill: '#22d3ee', stroke: '#0891b2', strokeWidth: 2 }}
                       />
                     )}
                   </LineChart>
@@ -266,15 +346,15 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Lower Section: Tables */}
-            <div className="dashboard-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1000px', margin: '0 auto', justifyContent: 'center' }}>
+            {/* Recent Submissions + Donut */}
+            <div className="submissions-grid">
               {/* Recent Contests Table */}
               {recentContests.length > 0 && (
                 <div className="card">
                   <div className="card-header">
-                    <h2 className="card-title">Recent Contests</h2>
+                    <h2 className="card-title">Recent Submissions</h2>
                   </div>
-                  <div className="table-wrapper">
+                  <div className="table-wrapper" style={{ border: 'none', background: 'transparent' }}>
                     <table>
                       <thead>
                         <tr>
@@ -285,63 +365,98 @@ export default function DashboardPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {recentContests.map((h, i) => (
-                          <tr key={h.contestId || i}>
-                            <td>
-                              <span className="badge" style={{
-                                backgroundColor: h.platform === 'codeforces' ? 'rgba(99, 102, 241, 0.1)' : h.platform === 'leetcode' ? 'rgba(234, 179, 8, 0.1)' : 'rgba(6, 182, 212, 0.1)',
-                                color: h.platform === 'codeforces' ? '#818cf8' : h.platform === 'leetcode' ? '#fef08a' : '#67e8f9',
-                                textTransform: 'capitalize'
-                              }}>
-                                {h.platform}
-                              </span>
-                            </td>
-                            <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {h.contestName}
-                            </td>
-                            <td>{h.rank}</td>
-                            <td>{h.rating}</td>
-                          </tr>
-                        ))}
+                        {recentContests.map((h, i) => {
+                          const pc = PLATFORM_COLORS[h.platform] || {};
+                          return (
+                            <tr key={h.contestId || i}>
+                              <td>
+                                <span className={`badge badge--${h.platform}`}>
+                                  {pc.label || h.platform}
+                                </span>
+                              </td>
+                              <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                {h.contestName}
+                              </td>
+                              <td style={{ fontWeight: 600 }}>{h.rank}</td>
+                              <td>
+                                <span className={`rating-value ${h.platform}`}>
+                                  {h.rating}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 </div>
               )}
 
-              {/* Leaderboard Table */}
-              {leaderboard.length > 0 && (
-                <div className="card">
-                  <div className="card-header">
-                    <h2 className="card-title">Top 10 Global Leaderboard</h2>
+              {/* Donut Chart */}
+              {contestsPerPlatform.length > 0 && (
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <h2 className="card-title" style={{ marginBottom: '16px', alignSelf: 'flex-start' }}>
+                    Contests Breakdown
+                  </h2>
+                  <div style={{ position: 'relative', width: '220px', height: '220px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={contestsPerPlatform}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={95}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="none"
+                        >
+                          {contestsPerPlatform.map((entry, index) => (
+                            <Cell
+                              key={entry.name}
+                              fill={PLATFORM_COLORS[entry.platform]?.main || DONUT_COLORS[index % DONUT_COLORS.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: 'rgba(15, 20, 45, 0.95)',
+                            border: '1px solid rgba(124,92,252,0.2)',
+                            borderRadius: '10px',
+                            color: '#eef2ff',
+                            fontSize: '0.82rem',
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* Center text */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      textAlign: 'center',
+                    }}>
+                      <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {totalContests}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Total
+                      </div>
+                    </div>
                   </div>
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>User</th>
-                          <th>Rating</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leaderboard.slice(0, 10).map((u, i) => (
-                          <tr key={u.userId} style={{ backgroundColor: u.userId === user?.id ? 'rgba(99, 102, 241, 0.05)' : 'transparent' }}>
-                            <td style={{ fontWeight: 700, color: i < 3 ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>
-                              {i + 1}
-                            </td>
-                            <td style={{ fontWeight: u.userId === user?.id ? 700 : 500, color: u.userId === user?.id ? 'var(--accent-primary)' : 'inherit' }}>
-                              {u.username} {u.userId === user?.id && '(You)'}
-                            </td>
-                            <td>
-                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                                {u.latestRating}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {contestsPerPlatform.map(d => {
+                      const pc = PLATFORM_COLORS[d.platform] || {};
+                      return (
+                        <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}>
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: pc.main, display: 'inline-block' }} />
+                          <span style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
+                          <span style={{ fontWeight: 700, color: pc.main }}>{d.value}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
