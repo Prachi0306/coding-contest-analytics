@@ -6,6 +6,7 @@ const statsRoutes = require('./stats.routes');
 const syncRoutes = require('./sync.routes');
 const leaderboardRoutes = require('./leaderboard.routes');
 const platformRoutes = require('./platform.routes');
+const scheduleRoutes = require('./schedule.routes');
 
 const router = express.Router();
 
@@ -34,6 +35,9 @@ router.use('/leaderboard', leaderboardRoutes);
 
 // Multi-Platform Profiles
 router.use('/platforms', platformRoutes);
+
+// Schedule (Bookmarks)
+router.use('/schedule', scheduleRoutes);
 
 module.exports = router;
 
