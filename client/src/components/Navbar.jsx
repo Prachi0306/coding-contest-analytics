@@ -33,6 +33,9 @@ export default function Navbar() {
               <Link to="/leaderboard" className={isActive('/leaderboard')}>
                 Leaderboard
               </Link>
+              <Link to="/schedule" className={isActive('/schedule')}>
+                My Schedule
+              </Link>
               <Link to="/dashboard" className={isActive('/dashboard')}>
                 Dashboard
               </Link>

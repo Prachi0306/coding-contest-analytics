@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { contestAPI } from '../api';
+import { contestAPI, scheduleAPI } from '../api';
+import useAuthStore from '../store/authStore';
 
 const PLATFORM_CONFIG = {
   codeforces: { label: 'Codeforces', color: '#a78bfa', icon: '🟣' },
@@ -85,6 +86,16 @@ function OngoingCard({ contest, platform }) {
           <span className={`badge badge--${platform}`}>
             {cfg.icon} {cfg.label}
           </span>
+          {useAuthStore.getState().user && (
+            <button
+              onClick={() => scheduleAPI.addBookmark(contest._id).then(() => alert('Added to schedule!')).catch(e => alert(e.response?.data?.message || 'Error'))}
+              className="btn btn--sm"
+              style={{ background: 'transparent', padding: '4px' }}
+              title="Add to My Schedule"
+            >
+              ⭐
+            </button>
+          )}
         </div>
         <h3 className="contest-live-card__title">{contest.name}</h3>
         <div className="contest-live-card__meta">
@@ -127,13 +138,25 @@ function UpcomingCard({ contest, platform, isFirst }) {
   return (
     <div className={`contest-upcoming-card ${isFirst ? 'contest-upcoming-card--next' : ''}`}>
       <div className="contest-upcoming-card__content">
-        <div className="contest-upcoming-card__header">
-          <span className={`badge badge--${platform}`}>
-            {cfg.icon} {cfg.label}
-          </span>
-          {isFirst && <span className="contest-next-badge">NEXT UP</span>}
-          {contest.type && (
-            <span className="badge badge--info">{contest.type}</span>
+        <div className="contest-upcoming-card__header" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span className={`badge badge--${platform}`}>
+              {cfg.icon} {cfg.label}
+            </span>
+            {isFirst && <span className="contest-next-badge">NEXT UP</span>}
+            {contest.type && (
+              <span className="badge badge--info">{contest.type}</span>
+            )}
+          </div>
+          {useAuthStore.getState().user && (
+            <button
+              onClick={() => scheduleAPI.addBookmark(contest._id).then(() => alert('Added to schedule!')).catch(e => alert(e.response?.data?.message || 'Error'))}
+              className="btn btn--sm"
+              style={{ background: 'transparent', padding: '4px' }}
+              title="Add to My Schedule"
+            >
+              ⭐
+            </button>
           )}
         </div>
         <h3 className="contest-upcoming-card__title">{contest.name}</h3>

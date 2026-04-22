@@ -57,6 +57,13 @@ export const contestAPI = {
   getContestStats: () => api.get('/contests/stats'),
 };
 
+// ─── Schedule ─────────────────────────────────────
+export const scheduleAPI = {
+  getSchedule: () => api.get('/schedule'),
+  addBookmark: (contestId) => api.post('/schedule/star', { contestId }),
+  removeBookmark: (contestId) => api.delete('/schedule/unstar', { data: { contestId } }),
+};
+
 // ─── Stats ────────────────────────────────────────
 export const statsAPI = {
   getRatingHistory: (platform) =>

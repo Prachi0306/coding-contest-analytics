@@ -10,6 +10,8 @@ import ContestsPage from './pages/ContestsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ConnectPlatformsPage from './pages/ConnectPlatformsPage';
 
+import SchedulePage from './pages/SchedulePage';
+
 function ProtectedRoute({ children }) {
   const user = useAuthStore(state => state.user);
   const loading = useAuthStore(state => state.loading);
@@ -40,6 +42,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/schedule"
+          element={
+            <ProtectedRoute>
+              <SchedulePage />
             </ProtectedRoute>
           }
         />
