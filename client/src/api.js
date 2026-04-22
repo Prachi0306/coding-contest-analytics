@@ -51,6 +51,7 @@ export const platformsAPI = {
 // ─── Contests ─────────────────────────────────────
 export const contestAPI = {
   getContests: (params) => api.get('/contests', { params }),
+  getCategorizedContests: (params) => api.get('/contests/categorized', { params }),
   getContestById: (id, platform) =>
     api.get(`/contests/${id}`, { params: { platform } }),
   getContestStats: () => api.get('/contests/stats'),

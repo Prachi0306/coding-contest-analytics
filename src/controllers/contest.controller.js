@@ -1,4 +1,5 @@
 const Contest = require('../models/Contest');
+const UserStats = require('../models/UserStats');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHandler');
 const AppError = require('../utils/AppError');
@@ -6,6 +7,100 @@ const AppError = require('../utils/AppError');
 /**
  * Contest Controller — serves contest data from the database.
  */
+
+/**
+ * @route   GET /api/contests/categorized
+ * @desc    Get contests split into ongoing, upcoming, and past
+ * @access  Public (optionalAuth — marks attended contests if user is logged in)
+ */
+const getCategorizedContests = asyncHandler(async (req, res) => {
+  const {
+    platform = 'codeforces',
+    pastPage = 1,
+    pastLimit = 20,
+    search,
+  } = req.query;
+
+  const now = new Date();
+  const platformLower = platform.toLowerCase();
+  const pastPageNum = Math.max(1, parseInt(pastPage, 10) || 1);
+  const pastLimitNum = Math.min(100, Math.max(1, parseInt(pastLimit, 10) || 20));
+  const pastSkip = (pastPageNum - 1) * pastLimitNum;
+
+  // ─── Ongoing: phase is CODING or time-based check ──────────
+  const ongoingQuery = {
+    platform: platformLower,
+    $or: [
+      { phase: { $in: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST'] } },
+      {
+        startTime: { $lte: now },
+        $expr: {
+          $gt: [
+            { $add: ['$startTime', { $multiply: ['$duration', 1000] }] },
+            now,
+          ],
+        },
+      },
+    ],
+  };
+
+  // ─── Upcoming: phase is BEFORE or startTime in the future ──
+  const upcomingQuery = {
+    platform: platformLower,
+    $or: [
+      { phase: 'BEFORE' },
+      { startTime: { $gt: now } },
+    ],
+    // Exclude any that are already ongoing (overlap guard)
+    phase: { $nin: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST', 'FINISHED'] },
+  };
+
+  // ─── Past: phase is FINISHED or endTime in the past ────────
+  const pastQuery = { platform: platformLower, phase: 'FINISHED' };
+  if (search) {
+    pastQuery.$text = { $search: search };
+  }
+
+  // Execute all queries in parallel
+  const [ongoing, upcoming, pastContests, pastTotal] = await Promise.all([
+    Contest.find(ongoingQuery).sort({ startTime: 1 }).lean(),
+    Contest.find(upcomingQuery).sort({ startTime: 1 }).lean(),
+    Contest.find(pastQuery).sort({ startTime: -1 }).skip(pastSkip).limit(pastLimitNum).lean(),
+    Contest.countDocuments(pastQuery),
+  ]);
+
+  // ─── Mark attended past contests if user is authenticated ──
+  let attendedContestIds = new Set();
+  if (req.user) {
+    const userStats = await UserStats.find({
+      userId: req.user.id,
+      platform: platformLower,
+    }).select('contestId').lean();
+
+    attendedContestIds = new Set(userStats.map((s) => String(s.contestId)));
+  }
+
+  const pastWithAttended = pastContests.map((c) => ({
+    ...c,
+    attended: attendedContestIds.has(String(c.contestId)),
+  }));
+
+  return sendSuccess(res, 200, 'Categorized contests retrieved', {
+    platform: platformLower,
+    ongoing,
+    upcoming,
+    past: {
+      contests: pastWithAttended,
+      pagination: {
+        page: pastPageNum,
+        limit: pastLimitNum,
+        total: pastTotal,
+        totalPages: Math.ceil(pastTotal / pastLimitNum),
+        hasMore: pastSkip + pastContests.length < pastTotal,
+      },
+    },
+  });
+});
 
 /**
  * @route   GET /api/contests
@@ -90,6 +185,7 @@ const getContestStats = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getCategorizedContests,
   getContests,
   getContestById,
   getContestStats,

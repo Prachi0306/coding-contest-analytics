@@ -1,8 +1,16 @@
 const express = require('express');
 const contestController = require('../controllers/contest.controller');
 const cacheMiddleware = require('../middleware/cache.middleware');
+const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+/**
+ * @route   GET /api/contests/categorized
+ * @desc    Get contests split into ongoing, upcoming, and past
+ * @access  Public (optionalAuth marks attended contests if logged in)
+ */
+router.get('/categorized', optionalAuth, contestController.getCategorizedContests);
 
 /**
  * @route   GET /api/contests/stats

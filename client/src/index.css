@@ -1106,22 +1106,386 @@ tr:hover td {
   background: rgba(124, 92, 252, 0.25);
 }
 
-/* ─── Contest Row Cards ───────────────────────────── */
+/* ─── Contest Sections ────────────────────────────── */
 .contest-section {
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-2xl);
+}
+
+.contest-section-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: var(--space-lg);
+}
+
+.contest-section-header__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.contest-section-header__icon--live {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  animation: glowPulseLive 2s ease-in-out infinite;
+}
+
+.contest-section-header__icon--upcoming {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.contest-section-header__icon--past {
+  background: rgba(124, 92, 252, 0.1);
+  border: 1px solid rgba(124, 92, 252, 0.2);
 }
 
 .contest-section-title {
   font-family: 'Outfit', sans-serif;
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: var(--space-md);
+  margin: 0;
+}
+
+.contest-section-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Live / Ongoing Contest Cards ────────────────── */
+@keyframes glowPulseLive {
+  0%, 100% { box-shadow: 0 0 15px rgba(248, 113, 113, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(248, 113, 113, 0.3); }
+}
+
+@keyframes liveDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+@keyframes borderGlowLive {
+  0%, 100% { border-color: rgba(248, 113, 113, 0.3); }
+  50% { border-color: rgba(248, 113, 113, 0.6); }
+}
+
+.contest-live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--space-md);
+}
+
+.contest-live-card {
+  position: relative;
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition-base);
+  animation: borderGlowLive 3s ease-in-out infinite;
+}
+
+.contest-live-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 40px rgba(248, 113, 113, 0.15);
+}
+
+.contest-live-card__glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.contest-live-card__content {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-lg);
+}
+
+.contest-live-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.contest-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.contest-live-badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f87171;
+  animation: liveDotPulse 1.5s ease-in-out infinite;
+}
+
+.contest-live-card__title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  line-height: 1.3;
+}
+
+.contest-live-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.contest-live-card__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.contest-live-card__meta-icon {
+  font-size: 0.9rem;
+}
+
+.contest-live-card__countdown {
+  padding-top: 14px;
+  border-top: 1px solid rgba(248, 113, 113, 0.1);
+}
+
+/* ─── Countdown Timer ────────────────────────────── */
+.contest-countdown {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  letter-spacing: 0.02em;
+}
+
+.contest-countdown--live {
+  color: #f87171;
+  font-size: 1rem;
+}
+
+/* ─── Upcoming Contest Cards ─────────────────────── */
+.contest-upcoming-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-md);
+}
+
+.contest-upcoming-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.contest-upcoming-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.contest-upcoming-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-glow);
+}
+
+.contest-upcoming-card--next {
+  border-color: rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 25px rgba(251, 191, 36, 0.08);
+}
+
+.contest-upcoming-card--next::before {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, transparent 50%);
+}
+
+.contest-upcoming-card--next::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24);
+}
+
+.contest-upcoming-card__content {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-lg);
+}
+
+.contest-upcoming-card__header {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
+.contest-next-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.contest-upcoming-card__title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.contest-upcoming-card__details {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.contest-upcoming-card__detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.contest-upcoming-card__countdown {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ─── Past Contests Toggle ───────────────────────── */
+.contest-past-toggle-wrapper {
+  margin-bottom: var(--space-md);
+}
+
+.contest-past-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px var(--space-lg);
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.contest-past-toggle:hover {
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-glow);
+}
+
+.contest-past-toggle--open {
+  border-color: var(--border-glow);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.contest-past-toggle__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.contest-past-toggle__title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: block;
+}
+
+.contest-past-toggle__count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.contest-past-toggle__arrow {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: transform var(--transition-base);
+}
+
+.contest-past-toggle__arrow--open {
+  transform: rotate(180deg);
+}
+
+.contest-past-content {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glow);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+/* ─── Attended Tick ──────────────────────────────── */
+.contest-attended-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--accent-green);
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+.contest-row--attended td:first-child {
+  position: relative;
+}
+
+/* ─── Contest Row (legacy compat) ─────────────────── */
 .contest-row {
   display: grid;
   grid-template-columns: 140px 1fr 140px 120px 100px 100px;
@@ -1350,6 +1714,7 @@ tr:hover td {
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
   .dashboard-stats-row { grid-template-columns: 1fr; }
+  .contest-live-grid, .contest-upcoming-grid { grid-template-columns: 1fr; }
 }
 
 /* ─── Scrollbar Styling ──────────────────────────── */
