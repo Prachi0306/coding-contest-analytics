@@ -8,6 +8,7 @@ const leaderboardRoutes = require('./leaderboard.routes');
 const platformRoutes = require('./platform.routes');
 const scheduleRoutes = require('./schedule.routes');
 const calendarRoutes = require('./calendar.routes');
+const upsolveRoutes = require('./upsolve.routes');
 
 const router = express.Router();
 
@@ -42,6 +43,9 @@ router.use('/schedule', scheduleRoutes);
 
 // Calendar (ICS generation)
 router.use('/calendar', calendarRoutes);
+
+// Upsolving Tracker
+router.use('/upsolve', upsolveRoutes);
 
 module.exports = router;
 

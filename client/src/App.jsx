@@ -11,6 +11,7 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import ConnectPlatformsPage from './pages/ConnectPlatformsPage';
 
 import SchedulePage from './pages/SchedulePage';
+import UpsolvePage from './pages/UpsolvePage';
 
 function ProtectedRoute({ children }) {
   const user = useAuthStore(state => state.user);
@@ -58,6 +59,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ConnectPlatformsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upsolve"
+          element={
+            <ProtectedRoute>
+              <UpsolvePage />
             </ProtectedRoute>
           }
         />

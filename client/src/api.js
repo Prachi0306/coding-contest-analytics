@@ -85,4 +85,13 @@ export const syncAPI = {
   syncMyRatings: () => api.post('/sync/my-ratings'),
 };
 
+// ─── Upsolving ────────────────────────────────────
+export const upsolveAPI = {
+  getUpsolveList: (contestId) => api.get(`/upsolve/${contestId}`),
+  updateSolveStatus: (contestId, problemId, data) =>
+    api.put(`/upsolve/${contestId}/${problemId}`, data),
+  getStats: () => api.get('/upsolve/stats'),
+  getContests: () => api.get('/upsolve/contests'),
+};
+
 export default api;
