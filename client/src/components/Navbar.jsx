@@ -3,6 +3,7 @@ import useAuthStore from '../store/authStore';
 
 export default function Navbar() {
   const user = useAuthStore(state => state.user);
+  const loading = useAuthStore(state => state.loading);
   const logout = useAuthStore(state => state.logout);
   const location = useLocation();
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Navbar() {
         </Link>
 
         <div className="navbar-links">
-          {user ? (
+          {loading ? null : user ? (
             <>
               <Link to="/contests" className={isActive('/contests')}>
                 Contests

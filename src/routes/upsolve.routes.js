@@ -1,10 +1,31 @@
 const express = require('express');
-const { param, body } = require('express-validator');
+const Joi = require('joi');
 const upsolveController = require('../controllers/upsolve.controller');
 const { authenticate } = require('../middleware/auth');
-const validate = require('../middleware/validate');
+const { validate, validateMultiple } = require('../middleware/validate');
 
 const router = express.Router();
+
+// ─── Validation Schemas ──────────────────────────────────────────────────────
+
+const objectId = Joi.string()
+  .pattern(/^[0-9a-fA-F]{24}$/)
+  .messages({ 'string.pattern.base': '{{#label}} must be a valid MongoDB ObjectId' });
+
+const contestIdParamsSchema = Joi.object({
+  contestId: objectId.required().label('contestId'),
+});
+
+const updateStatusParamsSchema = Joi.object({
+  contestId: objectId.required().label('contestId'),
+  problemId: Joi.string().trim().min(1).required().label('problemId'),
+});
+
+const updateStatusBodySchema = Joi.object({
+  status: Joi.string().valid('solved', 'unsolved').required().label('status'),
+});
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
 
 // All upsolve routes require authentication
 router.use(authenticate);
@@ -30,10 +51,7 @@ router.get('/contests', upsolveController.getContestsWithProblems);
  */
 router.get(
   '/:contestId',
-  [
-    param('contestId').isMongoId().withMessage('Invalid contest ID format'),
-  ],
-  validate,
+  validateMultiple({ params: contestIdParamsSchema }),
   upsolveController.getUpsolveList
 );
 
@@ -44,12 +62,10 @@ router.get(
  */
 router.put(
   '/:contestId/:problemId',
-  [
-    param('contestId').isMongoId().withMessage('Invalid contest ID format'),
-    param('problemId').notEmpty().withMessage('Problem ID is required'),
-    body('status').isIn(['solved', 'unsolved']).withMessage('Status must be solved or unsolved'),
-  ],
-  validate,
+  validateMultiple({
+    params: updateStatusParamsSchema,
+    body: updateStatusBodySchema,
+  }),
   upsolveController.updateSolveStatus
 );
 

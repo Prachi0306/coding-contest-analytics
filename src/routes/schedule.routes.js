@@ -1,10 +1,25 @@
 const express = require('express');
-const { body } = require('express-validator');
+const Joi = require('joi');
 const scheduleController = require('../controllers/schedule.controller');
 const { authenticate } = require('../middleware/auth');
-const validate = require('../middleware/validate');
+const { validate } = require('../middleware/validate');
 
 const router = express.Router();
+
+// ─── Validation Schemas ──────────────────────────────────────────────────────
+
+const contestIdBodySchema = Joi.object({
+  contestId: Joi.string()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .required()
+    .label('contestId')
+    .messages({
+      'string.pattern.base': 'contestId must be a valid MongoDB ObjectId',
+      'any.required': 'contestId is required',
+    }),
+});
+
+// ─── Routes ──────────────────────────────────────────────────────────────────
 
 // All schedule routes require authentication
 router.use(authenticate);
@@ -14,28 +29,14 @@ router.use(authenticate);
  * @desc    Add a contest to the user's schedule
  * @access  Private
  */
-router.post(
-  '/star',
-  [
-    body('contestId').notEmpty().withMessage('contestId is required').isMongoId().withMessage('Invalid contest ID format'),
-  ],
-  validate,
-  scheduleController.addBookmark
-);
+router.post('/star', validate(contestIdBodySchema), scheduleController.addBookmark);
 
 /**
  * @route   DELETE /api/schedule/unstar
  * @desc    Remove a contest from the user's schedule
  * @access  Private
  */
-router.delete(
-  '/unstar',
-  [
-    body('contestId').notEmpty().withMessage('contestId is required').isMongoId().withMessage('Invalid contest ID format'),
-  ],
-  validate,
-  scheduleController.removeBookmark
-);
+router.delete('/unstar', validate(contestIdBodySchema), scheduleController.removeBookmark);
 
 /**
  * @route   GET /api/schedule

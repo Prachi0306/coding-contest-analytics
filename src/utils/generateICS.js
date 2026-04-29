@@ -4,7 +4,7 @@
  * @param {Object} contest - The contest object
  * @param {string} contest.name - Title of the contest
  * @param {Date} contest.startTime - Start time of the contest
- * @param {number} contest.durationSeconds - Duration in seconds
+ * @param {number} contest.duration - Duration in seconds
  * @param {string} contest.url - URL of the contest (optional, for description)
  * @param {string} contest.platform - Platform name (optional)
  * @returns {string} The formatted ICS string
@@ -16,7 +16,7 @@ const generateICS = (contest) => {
   };
 
   const startTime = new Date(contest.startTime);
-  const endTime = new Date(startTime.getTime() + contest.durationSeconds * 1000);
+  const endTime = new Date(startTime.getTime() + contest.duration * 1000);
   const now = new Date();
 
   // Create description
