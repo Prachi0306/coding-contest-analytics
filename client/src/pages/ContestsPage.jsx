@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { contestAPI, scheduleAPI } from '../api';
 import useAuthStore from '../store/authStore';
+import CalendarButtons from '../components/CalendarButtons';
 
 const PLATFORM_CONFIG = {
   codeforces: { label: 'Codeforces', color: '#a78bfa', icon: '🟣' },
@@ -173,6 +174,7 @@ function UpcomingCard({ contest, platform, isFirst }) {
         <div className="contest-upcoming-card__countdown">
           <span className="contest-countdown">{countdown}</span>
         </div>
+        <CalendarButtons contest={{...contest, platform}} />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ const syncRoutes = require('./sync.routes');
 const leaderboardRoutes = require('./leaderboard.routes');
 const platformRoutes = require('./platform.routes');
 const scheduleRoutes = require('./schedule.routes');
+const calendarRoutes = require('./calendar.routes');
 
 const router = express.Router();
 
@@ -38,6 +39,9 @@ router.use('/platforms', platformRoutes);
 
 // Schedule (Bookmarks)
 router.use('/schedule', scheduleRoutes);
+
+// Calendar (ICS generation)
+router.use('/calendar', calendarRoutes);
 
 module.exports = router;
 

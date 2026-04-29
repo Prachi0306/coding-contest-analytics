@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { scheduleAPI } from '../api';
+import CalendarButtons from '../components/CalendarButtons';
 
 function formatDuration(seconds) {
   if (!seconds) return 'N/A';
@@ -114,6 +115,7 @@ export default function SchedulePage() {
                   <div className="contest-upcoming-card__countdown">
                     <span className="contest-countdown">{getCountdown(contest.startTime)}</span>
                   </div>
+                  <CalendarButtons contest={contest} />
                 </div>
               </div>
             ))}
