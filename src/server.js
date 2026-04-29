@@ -4,6 +4,7 @@ const createApp = require('./app');
 const logger = require('./utils/logger');
 const { initJobSystem, shutdownJobSystem } = require('./jobs');
 const { closeRedisConnections } = require('./config/redis');
+const { initCronJobs, stopCronJobs } = require('./cron/sync.cron');
 
 /**
  * Server entry point.
@@ -28,6 +29,9 @@ const startServer = async () => {
 
       // 4. Initialize background job system (non-blocking)
       await initJobSystem();
+
+      // 5. Initialize cron jobs (node-cron, no Redis required)
+      initCronJobs();
     });
 
     // ─── Graceful Shutdown ─────────────────────────────
@@ -36,6 +40,7 @@ const startServer = async () => {
 
       server.close(async () => {
         logger.info('HTTP server closed');
+        stopCronJobs();
         await shutdownJobSystem();
         await closeRedisConnections();
         await disconnectDB();
