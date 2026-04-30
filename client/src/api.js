@@ -6,7 +6,6 @@ const api = axios.create({
   timeout: 60000,
 });
 
-// ─── Request Interceptor: Attach JWT ──────────────
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -15,7 +14,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ─── Response Interceptor: Handle errors ──────────
 api.interceptors.response.use(
   (res) => res.data,
   (error) => {
@@ -33,7 +31,6 @@ api.interceptors.response.use(
   }
 );
 
-// ─── Auth ─────────────────────────────────────────
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
@@ -41,14 +38,12 @@ export const authAPI = {
   changePassword: (data) => api.put('/auth/change-password', data),
 };
 
-// ─── Platforms ────────────────────────────────────
 export const platformsAPI = {
   getProfile: () => api.get('/platforms/profile'),
   getStatus: () => api.get('/platforms/status'),
   connect: (data) => api.post('/platforms/connect', data),
 };
 
-// ─── Contests ─────────────────────────────────────
 export const contestAPI = {
   getContests: (params) => api.get('/contests', { params }),
   getCategorizedContests: (params) => api.get('/contests/categorized', { params }),
@@ -57,14 +52,12 @@ export const contestAPI = {
   getContestStats: () => api.get('/contests/stats'),
 };
 
-// ─── Schedule ─────────────────────────────────────
 export const scheduleAPI = {
   getSchedule: () => api.get('/schedule'),
   addBookmark: (contestId) => api.post('/schedule/star', { contestId }),
   removeBookmark: (contestId) => api.delete('/schedule/unstar', { data: { contestId } }),
 };
 
-// ─── Stats ────────────────────────────────────────
 export const statsAPI = {
   getRatingHistory: (platform) =>
     api.get('/stats/rating-history', { params: { platform } }),
@@ -79,13 +72,11 @@ export const statsAPI = {
     api.get('/leaderboard', { params }),
 };
 
-// ─── Sync ─────────────────────────────────────────
 export const syncAPI = {
   syncContests: () => api.post('/sync/contests'),
   syncMyRatings: () => api.post('/sync/my-ratings'),
 };
 
-// ─── Upsolving ────────────────────────────────────
 export const upsolveAPI = {
   getUpsolveList: (contestId) => api.get(`/upsolve/${contestId}`),
   updateSolveStatus: (contestId, problemId, data) =>

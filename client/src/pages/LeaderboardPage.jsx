@@ -36,7 +36,6 @@ export default function LeaderboardPage() {
     return username.charAt(0).toUpperCase();
   };
 
-  // Sort leaderboard
   const sortedLeaderboard = [...leaderboard].sort((a, b) => {
     if (sortBy === 'rating') return (b.latestRating || 0) - (a.latestRating || 0);
     if (sortBy === 'max') return (b.maxRating || 0) - (a.maxRating || 0);
@@ -47,7 +46,6 @@ export default function LeaderboardPage() {
   return (
     <div className="page">
       <div className="container">
-        {/* Header */}
         <div className="section-header">
           <div>
             <h1 className="section-title">Leaderboard</h1>
@@ -55,7 +53,6 @@ export default function LeaderboardPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Sort Dropdown */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -87,7 +84,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Platform Filter Pills */}
         <div style={{ marginBottom: 'var(--space-xl)' }}>
           <div className="platform-filters">
             {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => (

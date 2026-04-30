@@ -79,7 +79,6 @@ export default function ConnectPlatformsPage() {
     <div className="page">
       <div className="container" style={{ maxWidth: '560px', margin: '0 auto', padding: '0 24px' }}>
         <div className="card" style={{ padding: '36px 32px' }}>
-          {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <div style={{
               width: '80px',

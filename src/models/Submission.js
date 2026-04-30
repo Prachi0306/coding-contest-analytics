@@ -1,12 +1,6 @@
 const mongoose = require('mongoose');
 
-/**
- * Submission Schema — tracks a user's problem-solving status
- * for the Upsolving Tracker.
- *
- * Each entry represents whether a user solved a specific problem,
- * and importantly, whether it was solved during the contest or after (upsolve).
- */
+
 const submissionSchema = new mongoose.Schema(
   {
     userId: {
@@ -45,7 +39,6 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
-// Unique compound index: one submission record per user per problem per contest
 submissionSchema.index({ userId: 1, contestId: 1, problemId: 1 }, { unique: true });
 
 const Submission = mongoose.model('Submission', submissionSchema);

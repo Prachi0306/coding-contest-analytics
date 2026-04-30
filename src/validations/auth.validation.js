@@ -1,12 +1,7 @@
 const Joi = require('joi');
 const { email, username, password, handles } = require('./common.validation');
 
-// ─── Auth Validation Schemas ────────────────────────────
 
-/**
- * POST /api/auth/register
- * Validates new user registration payload.
- */
 const register = Joi.object({
   email: email.required().label('email'),
   username: username.required().label('username'),
@@ -19,12 +14,8 @@ const register = Joi.object({
   handles: handles.optional().default({}),
 });
 
-/**
- * POST /api/auth/login
- * Validates login payload — supports email or username.
- */
+
 const login = Joi.object({
-  // Allow either email or username for flexible login
   email: email.label('email'),
   username: username.label('username'),
   password: Joi.string().required().label('password'),
@@ -34,10 +25,7 @@ const login = Joi.object({
     'object.missing': 'Either email or username is required',
   });
 
-/**
- * PUT /api/auth/change-password
- * Validates password change request.
- */
+
 const changePassword = Joi.object({
   currentPassword: Joi.string().required().label('currentPassword'),
   newPassword: password.required().label('newPassword'),

@@ -1,28 +1,10 @@
 const { platformServices, getAllPlatforms } = require('./platforms');
 const logger = require('../utils/logger');
 
-/**
- * Platform Aggregator Service.
- *
- * Orchestrates fetching data from ALL configured platforms in parallel
- * using Promise.allSettled — the system NEVER crashes due to a single
- * platform failure.
- *
- * Responsibilities:
- *   • Call all platform services concurrently
- *   • Separate results into successPlatforms / failedPlatforms
- *   • Normalize the final response
- *   • Log failures for debugging without blocking the user
- */
+
 class PlatformAggregatorService {
-  /**
-   * Fetch profile data from all platforms the user has connected.
-   *
-   * @param {object} platformHandles - { codeforces: 'handle', leetcode: 'handle', codechef: 'handle' }
-   * @returns {Promise<object>} { platforms: [...], failedPlatforms: [...] }
-   */
+
   async fetchAllProfiles(platformHandles = {}) {
-    // ─── Determine which platforms to query ──────────
     const activePlatforms = this._getActivePlatforms(platformHandles);
 
     if (activePlatforms.length === 0) {
@@ -42,14 +24,12 @@ class PlatformAggregatorService {
       platforms: activePlatforms.map((p) => p.platform),
     });
 
-    // ─── Parallel fetch — NEVER fails entirely ──────
     const results = await Promise.allSettled(
       activePlatforms.map(({ platform, handle, service }) =>
         service.fetchProfile(handle)
       )
     );
 
-    // ─── Categorize results ─────────────────────────
     const platforms = [];
     const failedPlatforms = [];
 
@@ -62,7 +42,6 @@ class PlatformAggregatorService {
         if (data.status === 'success') {
           platforms.push(data);
         } else {
-          // Service returned a failure response (did not throw)
           failedPlatforms.push({
             platform,
             handle,
@@ -74,7 +53,6 @@ class PlatformAggregatorService {
           });
         }
       } else {
-        // Promise itself rejected (should never happen — services catch all errors)
         failedPlatforms.push({
           platform,
           handle,
@@ -98,14 +76,7 @@ class PlatformAggregatorService {
     return { platforms, failedPlatforms, summary };
   }
 
-  /**
-   * Fetch profile data for a SINGLE platform.
-   * Useful when the caller only needs one platform.
-   *
-   * @param {string} platform - Platform identifier (e.g. 'leetcode')
-   * @param {string} handle - Platform username
-   * @returns {Promise<object>} Standard platform response
-   */
+
   async fetchSingleProfile(platform, handle) {
     const service = platformServices[platform];
 
@@ -141,7 +112,6 @@ class PlatformAggregatorService {
     try {
       return await service.fetchProfile(handle.trim());
     } catch (error) {
-      // Safety net — should never reach here
       logger.error(`Aggregator: unexpected error for ${platform}`, {
         handle,
         error: error.message,
@@ -160,15 +130,8 @@ class PlatformAggregatorService {
     }
   }
 
-  // ─── Private Helpers ────────────────────────────────
 
-  /**
-   * Filter platformHandles to only those with a non-empty value
-   * and a corresponding registered service.
-   *
-   * @param {object} platformHandles
-   * @returns {Array<{platform: string, handle: string, service: object}>}
-   */
+
   _getActivePlatforms(platformHandles) {
     const registered = getAllPlatforms();
     const active = [];

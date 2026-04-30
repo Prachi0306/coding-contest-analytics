@@ -3,11 +3,7 @@ const { generateICS } = require('../utils/generateICS');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
 
-/**
- * @route   GET /api/calendar/:contestId
- * @desc    Generate and download an .ics file for a contest
- * @access  Public
- */
+
 const downloadCalendarICS = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
 
@@ -18,7 +14,6 @@ const downloadCalendarICS = asyncHandler(async (req, res) => {
 
   const icsString = generateICS(contest);
 
-  // Set headers to prompt file download
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader(
     'Content-Disposition',

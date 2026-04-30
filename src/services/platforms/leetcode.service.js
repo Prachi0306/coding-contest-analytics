@@ -1,24 +1,14 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
 
-/**
- * LeetCode Platform Service.
- *
- * Fetches user profile data from LeetCode's public GraphQL API.
- * Implements:
- *   • Retry logic (max 2 retries)
- *   • Timeout handling (10s)
- *   • Private profile detection
- *   • Standard response contract (NEVER throws)
- */
+
 
 const PLATFORM = 'leetcode';
 const LEETCODE_GRAPHQL_URL = 'https://leetcode.com/graphql';
-const REQUEST_TIMEOUT = 10000; // 10s
+const REQUEST_TIMEOUT = 10000;
 const MAX_RETRIES = 2;
-const RETRY_DELAY = 1000; // 1s base
+const RETRY_DELAY = 1000;
 
-// ─── GraphQL Queries ──────────────────────────────────
 
 const USER_PROFILE_QUERY = `
   query getUserProfile($username: String!) {
@@ -81,7 +71,6 @@ const USER_CONTEST_QUERY = `
   }
 `;
 
-// ─── Helpers ──────────────────────────────────────────
 
 function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,14 +91,7 @@ function _buildResponse(overrides = {}) {
   };
 }
 
-/**
- * Execute a GraphQL request against LeetCode with retry.
- *
- * @param {string} query - GraphQL query string
- * @param {object} variables - Query variables
- * @param {number} [attempt=0] - Current retry attempt
- * @returns {Promise<object>} Response data
- */
+
 async function _graphqlRequest(query, variables, attempt = 0) {
   try {
     const response = await axios.post(
@@ -129,7 +111,7 @@ async function _graphqlRequest(query, variables, attempt = 0) {
   } catch (error) {
     if (attempt < MAX_RETRIES) {
       const isRetryable =
-        !error.response || // network error
+        !error.response ||
         error.response.status >= 500 ||
         error.response.status === 429 ||
         error.code === 'ECONNABORTED';
@@ -145,16 +127,11 @@ async function _graphqlRequest(query, variables, attempt = 0) {
       }
     }
 
-    // Not retryable or retries exhausted
     throw error;
   }
 }
 
-/**
- * Parse tag counts from LeetCode's tagProblemCounts structure.
- * @param {object} tagProblemCounts
- * @returns {object} { tagName: totalSolved, ... }
- */
+
 function _parseTags(tagProblemCounts) {
   const tags = {};
   if (!tagProblemCounts) return tags;
@@ -171,11 +148,7 @@ function _parseTags(tagProblemCounts) {
   return tags;
 }
 
-/**
- * Normalize contest history from LeetCode.
- * @param {Array} history - userContestRankingHistory entries
- * @returns {Array} Normalized contest entries
- */
+
 function _normalizeContests(history) {
   if (!Array.isArray(history)) return [];
 
@@ -193,14 +166,8 @@ function _normalizeContests(history) {
     }));
 }
 
-// ─── Public API ───────────────────────────────────────
 
-/**
- * Fetch full profile data for a LeetCode user.
- *
- * @param {string} handle - LeetCode username
- * @returns {Promise<object>} Standard platform response — NEVER throws
- */
+
 async function fetchProfile(handle) {
   if (!handle || typeof handle !== 'string' || !handle.trim()) {
     return _buildResponse({
@@ -213,17 +180,14 @@ async function fetchProfile(handle) {
   const trimmedHandle = handle.trim();
 
   try {
-    // ─── Parallel GraphQL queries ─────────────────
     const [profileRes, contestRes] = await Promise.allSettled([
       _graphqlRequest(USER_PROFILE_QUERY, { username: trimmedHandle }),
       _graphqlRequest(USER_CONTEST_QUERY, { username: trimmedHandle }),
     ]);
 
-    // ─── Profile data ─────────────────────────────
     const profileData = profileRes.status === 'fulfilled' ? profileRes.value : null;
     const matchedUser = profileData?.data?.matchedUser;
 
-    // Private or non-existent profile
     if (profileRes.status === 'fulfilled' && !matchedUser) {
       return _buildResponse({
         handle: trimmedHandle,
@@ -232,15 +196,12 @@ async function fetchProfile(handle) {
       });
     }
 
-    // ─── Contest data ─────────────────────────────
     const contestData = contestRes.status === 'fulfilled' ? contestRes.value : null;
     const contestRanking = contestData?.data?.userContestRanking;
     const contestHistory = contestData?.data?.userContestRankingHistory || [];
 
-    // ─── Compute rating ───────────────────────────
     const rating = contestRanking?.rating ? Math.round(contestRanking.rating) : null;
 
-    // LeetCode doesn't expose maxRating directly — derive from history
     let maxRating = null;
     if (contestHistory.length > 0) {
       const attendedRatings = contestHistory
@@ -251,10 +212,8 @@ async function fetchProfile(handle) {
       }
     }
 
-    // ─── Tags ─────────────────────────────────────
     const tags = _parseTags(matchedUser?.tagProblemCounts);
 
-    // ─── Submissions summary ──────────────────────
     const submitStats = matchedUser?.submitStatsGlobal?.acSubmissionNum || [];
     const submissions = submitStats.map((s) => ({
       difficulty: s.difficulty,
@@ -262,7 +221,6 @@ async function fetchProfile(handle) {
       totalSubmissions: s.submissions,
     }));
 
-    // ─── Contests ─────────────────────────────────
     const contests = _normalizeContests(contestHistory);
 
     return _buildResponse({

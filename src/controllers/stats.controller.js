@@ -5,15 +5,9 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHandler');
 const AppError = require('../utils/AppError');
 
-/**
- * Stats Controller — serves user analytics and dashboard data.
- */
 
-/**
- * @route   GET /api/stats/rating-history
- * @desc    Get authenticated user's rating history
- * @access  Private
- */
+
+
 const getRatingHistory = asyncHandler(async (req, res) => {
   const { platform = 'codeforces' } = req.query;
 
@@ -26,11 +20,7 @@ const getRatingHistory = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/stats/summary
- * @desc    Get authenticated user's aggregated stats summary
- * @access  Private
- */
+
 const getStatsSummary = asyncHandler(async (req, res) => {
   const { platform = 'codeforces' } = req.query;
 
@@ -49,11 +39,7 @@ const getStatsSummary = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/stats/contest-history
- * @desc    Get authenticated user's paginated contest history
- * @access  Private
- */
+
 const getContestHistory = asyncHandler(async (req, res) => {
   const {
     platform,
@@ -78,11 +64,7 @@ const getContestHistory = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/stats/latest-rating
- * @desc    Get authenticated user's latest rating
- * @access  Private
- */
+
 const getLatestRating = asyncHandler(async (req, res) => {
   const { platform = 'codeforces' } = req.query;
 
@@ -94,11 +76,7 @@ const getLatestRating = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/stats/codeforces-profile
- * @desc    Get live Codeforces profile for authenticated user
- * @access  Private
- */
+
 const getCodeforcesProfile = asyncHandler(async (req, res) => {
   const user = await userRepository.findById(req.user.id);
   const handle = user?.handles?.codeforces;
@@ -114,11 +92,7 @@ const getCodeforcesProfile = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, 'Codeforces profile retrieved', { profile });
 });
 
-/**
- * @route   GET /api/stats/leaderboard
- * @desc    Get leaderboard — top users by rating
- * @access  Public
- */
+
 const getLeaderboard = asyncHandler(async (req, res) => {
   const {
     platform = 'codeforces',

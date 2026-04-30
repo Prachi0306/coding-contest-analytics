@@ -2,7 +2,6 @@ const { Queue } = require('bullmq');
 const { getRedisConnection } = require('../config/redis');
 const logger = require('../utils/logger');
 
-// ─── Queue Names ────────────────────────────────────────
 
 const QUEUE_NAMES = {
   SYNC_CONTESTS: 'sync-contests',
@@ -12,14 +11,10 @@ const QUEUE_NAMES = {
   SYNC_ALL_USERS: 'sync-all-users',
 };
 
-// ─── Queue Instances ────────────────────────────────────
 
 let queues = {};
 
-/**
- * Initialize all BullMQ queues.
- * Must be called after Redis is available.
- */
+
 const initQueues = () => {
   const connection = getRedisConnection();
 
@@ -70,15 +65,8 @@ const initQueues = () => {
   return queues;
 };
 
-// ─── Job Producers ──────────────────────────────────────
 
-/**
- * Add a platform profile sync job to the queue.
- * @param {string} userId - MongoDB User ID
- * @param {string} platform - 'codeforces', 'leetcode', 'codechef'
- * @param {string} handle - Platform handle
- * @returns {Promise<Job>}
- */
+
 const addPlatformSyncJob = async (userId, platform, handle) => {
   let queue = null;
 
@@ -94,30 +82,24 @@ const addPlatformSyncJob = async (userId, platform, handle) => {
   queue = getQueue(platform);
 
   if (!queue) {
-    initQueues(); // lazy initialization safety
+    initQueues();
     queue = getQueue(platform);
     if (!queue) throw new Error(`Invalid platform for queue: ${platform}`);
   }
 
-  // Use jobId = userId + platform to prevent duplicates
   const jobId = `${userId}-${platform}`;
 
   const job = await queue.add(
     `sync-${platform}-${handle}`,
     { userId, handle, platform, triggeredAt: new Date().toISOString() },
-    { jobId } // Built-in BullMQ duplicate prevention based on jobId
+    { jobId }
   );
 
   logger.info(`[Job] Added ${platform} sync for ${handle} (Job ID: ${job.id})`);
   return job;
 };
 
-/**
- * Check job status by platform and user ID.
- * @param {string} userId - MongoDB User ID
- * @param {string} platform - Platform name
- * @returns {Promise<object|null>} Job status
- */
+
 const getJobStatus = async (userId, platform) => {
   const queueMap = {
     codeforces: queues.syncCodeforces,
@@ -143,10 +125,7 @@ const getJobStatus = async (userId, platform) => {
   };
 };
 
-/**
- * Add a contest sync job to the queue.
- * @returns {Promise<Job>}
- */
+
 const addContestSyncJob = async () => {
   if (!queues.syncContests) initQueues();
   const job = await queues.syncContests.add('sync-codeforces-contests', {
@@ -157,10 +136,7 @@ const addContestSyncJob = async () => {
   return job;
 };
 
-/**
- * Add a batch sync job for all users.
- * @returns {Promise<Job>}
- */
+
 const addBatchSyncJob = async () => {
   if (!queues.syncAllUsers) initQueues();
   const job = await queues.syncAllUsers.add('sync-all-users', {
@@ -170,29 +146,24 @@ const addBatchSyncJob = async () => {
   return job;
 };
 
-/**
- * Schedule recurring jobs (cron-based).
- * Call once during server startup.
- */
+
 const scheduleRecurringJobs = async () => {
   if (!queues.syncContests) initQueues();
 
-  // Sync contests every 6 hours
   await queues.syncContests.add(
     'scheduled-contest-sync',
     { platform: 'codeforces', scheduled: true },
     {
-      repeat: { pattern: '0 */6 * * *' }, // Every 6 hours
+      repeat: { pattern: '0 */6 * * *' },
       jobId: 'recurring-contest-sync',
     }
   );
 
-  // Sync all users' ratings every 12 hours
   await queues.syncAllUsers.add(
     'scheduled-all-users-sync',
     { scheduled: true },
     {
-      repeat: { pattern: '0 */12 * * *' }, // Every 12 hours
+      repeat: { pattern: '0 */12 * * *' },
       jobId: 'recurring-all-users-sync',
     }
   );
@@ -203,9 +174,7 @@ const scheduleRecurringJobs = async () => {
   });
 };
 
-/**
- * Close all queues gracefully.
- */
+
 const closeQueues = async () => {
   const queueEntries = Object.entries(queues);
   for (const [name, queue] of queueEntries) {

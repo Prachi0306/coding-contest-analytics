@@ -4,11 +4,7 @@ const { sendSuccess } = require('../utils/responseHandler');
 
 const router = express.Router();
 
-/**
- * @route   GET /api/health
- * @desc    Health check endpoint — returns server + DB status
- * @access  Public
- */
+
 router.get('/', (req, res) => {
   const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
 

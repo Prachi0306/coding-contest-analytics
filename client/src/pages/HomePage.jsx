@@ -7,7 +7,6 @@ export default function HomePage() {
   return (
     <div className="page">
       <div className="container">
-        {/* Hero */}
         <div className="hero-section">
           <h1 className="hero-title">
             Track your competitive<br />programming journey
@@ -34,7 +33,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Feature Cards */}
         <div className="feature-grid">
           <div className="feature-card">
             <div className="feature-card__icon">📈</div>

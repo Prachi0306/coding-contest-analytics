@@ -4,15 +4,9 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHandler');
 const AppError = require('../utils/AppError');
 
-/**
- * Contest Controller — serves contest data from the database.
- */
 
-/**
- * @route   GET /api/contests/categorized
- * @desc    Get contests split into ongoing, upcoming, and past
- * @access  Public (optionalAuth — marks attended contests if user is logged in)
- */
+
+
 const getCategorizedContests = asyncHandler(async (req, res) => {
   const {
     platform = 'codeforces',
@@ -27,7 +21,6 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
   const pastLimitNum = Math.min(100, Math.max(1, parseInt(pastLimit, 10) || 20));
   const pastSkip = (pastPageNum - 1) * pastLimitNum;
 
-  // ─── Ongoing: phase is CODING or time-based check ──────────
   const ongoingQuery = {
     platform: platformLower,
     $or: [
@@ -44,24 +37,20 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
     ],
   };
 
-  // ─── Upcoming: phase is BEFORE or startTime in the future ──
   const upcomingQuery = {
     platform: platformLower,
     $or: [
       { phase: 'BEFORE' },
       { startTime: { $gt: now } },
     ],
-    // Exclude any that are already ongoing (overlap guard)
     phase: { $nin: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST', 'FINISHED'] },
   };
 
-  // ─── Past: phase is FINISHED or endTime in the past ────────
   const pastQuery = { platform: platformLower, phase: 'FINISHED' };
   if (search) {
     pastQuery.$text = { $search: search };
   }
 
-  // Execute all queries in parallel
   const [ongoing, upcoming, pastContests, pastTotal] = await Promise.all([
     Contest.find(ongoingQuery).sort({ startTime: 1 }).lean(),
     Contest.find(upcomingQuery).sort({ startTime: 1 }).lean(),
@@ -69,7 +58,6 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
     Contest.countDocuments(pastQuery),
   ]);
 
-  // ─── Mark attended past contests if user is authenticated ──
   let attendedContestIds = new Set();
   if (req.user) {
     const userStats = await UserStats.find({
@@ -102,11 +90,7 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/contests
- * @desc    Get a paginated list of contests
- * @access  Public
- */
+
 const getContests = asyncHandler(async (req, res) => {
   const {
     platform = 'codeforces',
@@ -119,13 +103,11 @@ const getContests = asyncHandler(async (req, res) => {
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  // Build query
   const query = { platform: platform.toLowerCase() };
   if (search) {
     query.$text = { $search: search };
   }
 
-  // Execute query + count in parallel
   const [contests, total] = await Promise.all([
     Contest.find(query)
       .sort({ startTime: -1 })
@@ -147,11 +129,7 @@ const getContests = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/contests/:contestId
- * @desc    Get a single contest by platform + contestId
- * @access  Public
- */
+
 const getContestById = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
   const { platform = 'codeforces' } = req.query;
@@ -168,11 +146,7 @@ const getContestById = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, 'Contest retrieved', { contest });
 });
 
-/**
- * @route   GET /api/contests/stats
- * @desc    Get contest statistics (count per platform)
- * @access  Public
- */
+
 const getContestStats = asyncHandler(async (req, res) => {
   const stats = await Contest.countByPlatform();
 

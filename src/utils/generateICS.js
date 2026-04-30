@@ -1,16 +1,5 @@
-/**
- * Generates an iCalendar (.ics) string for a contest.
- *
- * @param {Object} contest - The contest object
- * @param {string} contest.name - Title of the contest
- * @param {Date} contest.startTime - Start time of the contest
- * @param {number} contest.duration - Duration in seconds
- * @param {string} contest.url - URL of the contest (optional, for description)
- * @param {string} contest.platform - Platform name (optional)
- * @returns {string} The formatted ICS string
- */
+
 const generateICS = (contest) => {
-  // Format dates to ICS standard: YYYYMMDDTHHMMSSZ (UTC)
   const formatDate = (date) => {
     return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   };
@@ -19,7 +8,6 @@ const generateICS = (contest) => {
   const endTime = new Date(startTime.getTime() + contest.duration * 1000);
   const now = new Date();
 
-  // Create description
   let description = `Coding Contest: ${contest.name}\\n`;
   if (contest.platform) description += `Platform: ${contest.platform}\\n`;
   if (contest.url) description += `URL: ${contest.url}\\n`;

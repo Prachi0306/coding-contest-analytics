@@ -3,24 +3,11 @@ const { startWorkers, stopWorkers } = require('./workers');
 const { isRedisAvailable } = require('../config/redis');
 const logger = require('../utils/logger');
 
-/**
- * Central job system initializer.
- *
- * Call `initJobSystem()` during server startup to:
- * 1. Check Redis availability
- * 2. Initialize queues
- * 3. Start workers
- * 4. Schedule recurring jobs
- *
- * Call `shutdownJobSystem()` during graceful shutdown.
- */
+
 
 let initialized = false;
 
-/**
- * Initialize the full background job system.
- * Skips gracefully if Redis is not available.
- */
+
 const initJobSystem = async () => {
   if (initialized) {
     logger.warn('Job system already initialized, skipping');
@@ -28,20 +15,16 @@ const initJobSystem = async () => {
   }
 
   try {
-    // 0. Check if Redis is reachable
     const redisUp = await isRedisAvailable();
     if (!redisUp) {
       logger.warn('Redis is not available — background jobs disabled. Server will continue without them.');
       return;
     }
 
-    // 1. Initialize queues
     initQueues();
 
-    // 2. Start workers
     startWorkers();
 
-    // 3. Schedule recurring jobs
     await scheduleRecurringJobs();
 
     initialized = true;
@@ -55,9 +38,7 @@ const initJobSystem = async () => {
   }
 };
 
-/**
- * Gracefully shut down the job system.
- */
+
 const shutdownJobSystem = async () => {
   if (!initialized) return;
 

@@ -15,13 +15,11 @@ const useAuthStore = create((set) => ({
 
     if (token) {
       try {
-        // Always validate the token against the server to catch expiry
         const res = await authAPI.getProfile();
         const { user } = res.data;
         set({ user, loading: false });
         localStorage.setItem('user', JSON.stringify(user));
       } catch (error) {
-        // Token invalid or expired — clear everything
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         set({ user: null, loading: false });

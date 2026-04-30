@@ -5,15 +5,9 @@ const { sendSuccess } = require('../utils/responseHandler');
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 
-/**
- * Platform Controller — handles multi-platform profile operations.
- */
 
-/**
- * @route   GET /api/platforms/profile
- * @desc    Fetch aggregated profile data from all connected platforms
- * @access  Private
- */
+
+
 const getProfile = asyncHandler(async (req, res) => {
   const user = await userRepository.findById(req.user.id);
 
@@ -23,7 +17,6 @@ const getProfile = asyncHandler(async (req, res) => {
 
   const platformHandles = user.platformHandles || {};
 
-  // Check if user has any platform connected
   const hasAnyHandle = Object.values(platformHandles).some(
     (h) => h && h.trim()
   );
@@ -36,30 +29,21 @@ const getProfile = asyncHandler(async (req, res) => {
     });
   }
 
-  // Aggregate data from all connected platforms
   const result = await platformAggregator.fetchAllProfiles(platformHandles);
 
   return sendSuccess(res, 200, 'Platform profiles fetched', result);
 });
 
-/**
- * @route   POST /api/platforms/connect
- * @desc    Connect / update platform handles for the authenticated user
- * @access  Private
- *
- * Body: { codeforces?: string, leetcode?: string, codechef?: string }
- */
+
 const connectPlatforms = asyncHandler(async (req, res) => {
   const { codeforces, leetcode, codechef } = req.body;
 
-  // At least one handle must be provided
   if (!codeforces && !leetcode && !codechef) {
     throw AppError.badRequest(
       'At least one platform handle must be provided'
     );
   }
 
-  // Build update object — only set provided fields
   const updates = {};
   if (codeforces !== undefined) updates.codeforces = codeforces.trim();
   if (leetcode !== undefined) updates.leetcode = leetcode.trim();
@@ -83,11 +67,7 @@ const connectPlatforms = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   GET /api/platforms/status
- * @desc    Check which platforms the user has connected
- * @access  Private
- */
+
 const getConnectionStatus = asyncHandler(async (req, res) => {
   const user = await userRepository.findById(req.user.id);
 

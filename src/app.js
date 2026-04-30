@@ -9,14 +9,10 @@ const routes = require('./routes');
 const logger = require('./utils/logger');
 const { notFoundHandler, globalErrorHandler } = require('./middleware/errorHandler');
 
-/**
- * Create and configure the Express application.
- * Separated from server.js for testability.
- */
+
 const createApp = () => {
   const app = express();
 
-  // ─── Security ──────────────────────────────────────
   app.use(helmet());
   app.use(cors({
     origin: config.corsOrigins,
@@ -25,22 +21,17 @@ const createApp = () => {
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  // ─── Body Parsing ──────────────────────────────────
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // ─── Compression ───────────────────────────────────
   app.use(compression());
 
-  // ─── HTTP Logging (via Winston) ────────────────────
   if (config.env !== 'test') {
     app.use(morgan('combined', { stream: logger.stream }));
   }
 
-  // ─── API Routes ────────────────────────────────────
   app.use('/api', routes);
 
-  // ─── Root Endpoint ─────────────────────────────────
   app.get('/', (req, res) => {
     res.json({
       success: true,
@@ -50,7 +41,6 @@ const createApp = () => {
     });
   });
 
-  // ─── Error Handling ────────────────────────────────
   app.use(notFoundHandler);
   app.use(globalErrorHandler);
 

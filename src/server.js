@@ -6,19 +6,13 @@ const { initJobSystem, shutdownJobSystem } = require('./jobs');
 const { closeRedisConnections } = require('./config/redis');
 const { initCronJobs, stopCronJobs } = require('./cron/sync.cron');
 
-/**
- * Server entry point.
- * Connects to MongoDB, then starts the Express server.
- */
+
 const startServer = async () => {
   try {
-    // 1. Connect to MongoDB
     await connectDB();
 
-    // 2. Create Express app
     const app = createApp();
 
-    // 3. Start listening
     const server = app.listen(config.port, async () => {
       logger.info('═══════════════════════════════════════════════');
       logger.info(`  🚀 Server running in ${config.env} mode`);
@@ -27,14 +21,11 @@ const startServer = async () => {
       logger.info(`  💚 Health: http://localhost:${config.port}/api/health`);
       logger.info('═══════════════════════════════════════════════');
 
-      // 4. Initialize background job system (non-blocking)
       await initJobSystem();
 
-      // 5. Initialize cron jobs (node-cron, no Redis required)
       initCronJobs();
     });
 
-    // ─── Graceful Shutdown ─────────────────────────────
     const shutdown = async (signal) => {
       logger.warn(`${signal} received. Shutting down gracefully...`);
 
@@ -47,7 +38,6 @@ const startServer = async () => {
         process.exit(0);
       });
 
-      // Force shutdown after 10 seconds
       setTimeout(() => {
         logger.error('Forced shutdown after timeout');
         process.exit(1);
@@ -57,13 +47,11 @@ const startServer = async () => {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
 
-    // Handle unhandled rejections
     process.on('unhandledRejection', (err) => {
       logger.error('Unhandled Rejection', { error: err.message, stack: err.stack });
       shutdown('UNHANDLED_REJECTION');
     });
 
-    // Handle uncaught exceptions
     process.on('uncaughtException', (err) => {
       logger.error('Uncaught Exception', { error: err.message, stack: err.stack });
       shutdown('UNCAUGHT_EXCEPTION');

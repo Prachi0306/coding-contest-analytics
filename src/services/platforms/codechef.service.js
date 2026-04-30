@@ -1,26 +1,14 @@
 const axios = require('axios');
 const logger = require('../../utils/logger');
 
-/**
- * CodeChef Platform Service.
- *
- * Fetches user profile data from CodeChef's public API.
- * Falls back to a secondary endpoint if the primary one fails.
- *
- * Implements:
- *   • Retry logic (max 2 retries)
- *   • Timeout handling (10s)
- *   • Parsing failure → safe failure response
- *   • Standard response contract (NEVER throws)
- */
+
 
 const PLATFORM = 'codechef';
 const CODECHEF_API_BASE = 'https://codechef-api.vercel.app/handle';
-const REQUEST_TIMEOUT = 10000; // 10s
+const REQUEST_TIMEOUT = 10000;
 const MAX_RETRIES = 2;
-const RETRY_DELAY = 1000; // 1s base
+const RETRY_DELAY = 1000;
 
-// ─── Helpers ──────────────────────────────────────────
 
 function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -41,13 +29,7 @@ function _buildResponse(overrides = {}) {
   };
 }
 
-/**
- * Make an HTTP request with retry logic.
- *
- * @param {string} url - Request URL
- * @param {number} [attempt=0] - Current retry attempt
- * @returns {Promise<object>} Response data
- */
+
 async function _requestWithRetry(url, attempt = 0) {
   try {
     const response = await axios.get(url, {
@@ -62,7 +44,7 @@ async function _requestWithRetry(url, attempt = 0) {
   } catch (error) {
     if (attempt < MAX_RETRIES) {
       const isRetryable =
-        !error.response || // network error
+        !error.response ||
         error.response.status >= 500 ||
         error.response.status === 429 ||
         error.code === 'ECONNABORTED';
@@ -78,21 +60,15 @@ async function _requestWithRetry(url, attempt = 0) {
       }
     }
 
-    // Gracefully handle specific API limitations without raw Axios errors
     if (error.response?.status === 402 || error.response?.status === 429) {
       throw new Error('CodeChef public API quota exceeded (Rate Limited). Please try syncing again in a few minutes.');
     }
 
-    // Not retryable or retries exhausted
     throw error;
   }
 }
 
-/**
- * Parse rating history / contest participation from CodeChef API response.
- * @param {object} data - Raw API data
- * @returns {Array} Normalized contest entries
- */
+
 function _parseContests(data) {
   try {
     const ratingData = data.ratingData || [];
@@ -111,14 +87,9 @@ function _parseContests(data) {
   }
 }
 
-/**
- * Parse problem statistics from CodeChef API response.
- * @param {object} data - Raw API data
- * @returns {object} { totalSolved, submissions array }
- */
+
 function _parseSubmissions(data) {
   try {
-    // The public API returns fully solved / partially solved counts
     const submissions = [];
 
     if (data.fullySolved) {
@@ -141,14 +112,8 @@ function _parseSubmissions(data) {
   }
 }
 
-// ─── Public API ───────────────────────────────────────
 
-/**
- * Fetch full profile data for a CodeChef user natively bypassing the wrapper API.
- *
- * @param {string} handle - CodeChef username
- * @returns {Promise<object>} Standard platform response — NEVER throws
- */
+
 async function fetchProfile(handle) {
   if (!handle || typeof handle !== 'string' || !handle.trim()) {
     return _buildResponse({ handle: handle || '', status: 'failed', error: 'Invalid or empty CodeChef handle' });
@@ -188,13 +153,11 @@ async function fetchProfile(handle) {
     const submissions = [];
     let contests = [];
     
-    // Attempt to scrape fully solved count natively if available
     const solvedMatch = rawHtml.match(/Fully Solved\s*\(\s*(\d+)/i);
     if (solvedMatch) {
        submissions.push({ difficulty: 'fullySolved', count: parseInt(solvedMatch[1], 10) });
     }
 
-    // Attempt to accurately scrape the contest rating history bypassing external APIs completely!
     const historyMatch = rawHtml.match(/var all_rating = (\[.*?\]);/s);
     if (historyMatch) {
       try {

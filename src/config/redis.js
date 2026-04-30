@@ -2,29 +2,19 @@ const IORedis = require('ioredis');
 const config = require('./index');
 const logger = require('../utils/logger');
 
-/**
- * Shared Redis connection for BullMQ.
- * BullMQ requires ioredis, not the generic redis client.
- *
- * Returns a factory function so each queue/worker gets its own connection
- * (BullMQ best practice — avoids blocking issues).
- */
+
 
 let connectionInstance = null;
 
-/**
- * Check if Redis is available by attempting a quick PING.
- * @returns {Promise<boolean>} True if Redis responds to PING
- */
+
 const isRedisAvailable = async () => {
   const testConn = new IORedis(config.redisUrl, {
     maxRetriesPerRequest: 1,
     enableReadyCheck: false,
     connectTimeout: 3000,
-    retryStrategy: () => null, // Don't retry
+    retryStrategy: () => null,
   });
 
-  // Suppress error events during probe
   testConn.on('error', () => {});
 
   try {
@@ -37,19 +27,15 @@ const isRedisAvailable = async () => {
   }
 };
 
-/**
- * Create a new ioredis connection for BullMQ.
- * @param {string} [role='default'] - Connection role for logging
- * @returns {IORedis} Redis connection instance
- */
+
 const createRedisConnection = (role = 'default') => {
   const connection = new IORedis(config.redisUrl, {
-    maxRetriesPerRequest: null, // Required by BullMQ
-    enableReadyCheck: false,    // Required by BullMQ
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
     retryStrategy: (times) => {
       if (times > 5) {
         logger.error(`Redis ${role}: max retries reached, giving up`);
-        return null; // Stop retrying
+        return null;
       }
       const delay = Math.min(times * 1000, 5000);
       return delay;
@@ -67,10 +53,7 @@ const createRedisConnection = (role = 'default') => {
   return connection;
 };
 
-/**
- * Get or create a shared Redis connection (for queue producers).
- * @returns {IORedis}
- */
+
 const getRedisConnection = () => {
   if (!connectionInstance) {
     connectionInstance = createRedisConnection('shared');
@@ -78,9 +61,7 @@ const getRedisConnection = () => {
   return connectionInstance;
 };
 
-/**
- * Close all Redis connections gracefully.
- */
+
 const closeRedisConnections = async () => {
   if (connectionInstance) {
     try {

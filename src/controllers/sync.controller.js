@@ -2,16 +2,9 @@ const dataSyncService = require('../services/dataSync.service');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHandler');
 
-/**
- * Sync Controller — triggers data sync operations.
- * All sync endpoints are private (require authentication).
- */
 
-/**
- * @route   POST /api/sync/contests
- * @desc    Trigger a Codeforces contest sync
- * @access  Private
- */
+
+
 const syncContests = asyncHandler(async (req, res) => {
   const result = await dataSyncService.syncCodeforcesContests();
 
@@ -22,11 +15,7 @@ const userRepository = require('../repositories/user.repository');
 const { addPlatformSyncJob } = require('../jobs/queues');
 const AppError = require('../utils/AppError');
 
-/**
- * @route   POST /api/sync/my-ratings
- * @desc    Enqueue background jobs to sync authenticated user's rating history across all connected platforms
- * @access  Private
- */
+
 const syncMyRatings = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const user = await userRepository.findById(userId);
@@ -35,7 +24,6 @@ const syncMyRatings = asyncHandler(async (req, res) => {
     throw AppError.notFound('User not found');
   }
 
-  // Combine unified handles and legacy handles
   const handles = {
     codeforces: user.platformHandles?.codeforces || user.handles?.codeforces,
     leetcode: user.platformHandles?.leetcode || user.handles?.leetcode,
@@ -53,8 +41,6 @@ const syncMyRatings = asyncHandler(async (req, res) => {
         await addPlatformSyncJob(userId, platform, handle);
         queuedPlatforms.push(platform);
       } catch (err) {
-        // Universal Native Sync Fallback! 
-        // If Redis/JobQueue fails for ANY reason (Connection failed, AggregateError, ECONNREFUSED), do it locally on the node main thread:
         const data = await platformAggregator.fetchSingleProfile(platform, handle);
         if (data.status !== 'failed' && data.contests && data.contests.length > 0) {
           const statsDocs = data.contests.map((entry) => ({

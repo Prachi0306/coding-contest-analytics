@@ -44,7 +44,6 @@ export default function RegisterPage() {
 
   return (
     <div className="login-layout">
-      {/* Left — Form Side */}
       <div className="login-form-side">
         <div className="login-card">
           <div style={{ marginBottom: '32px' }}>
@@ -145,7 +144,6 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right — Visual Side */}
       <div className="login-visual-side">
         <div className="login-visual-content">
           <div style={{
@@ -168,7 +166,6 @@ export default function RegisterPage() {
             Connect your competitive programming profiles and unlock powerful analytics, leaderboards, and insights.
           </p>
 
-          {/* Platform showcase */}
           <div style={{
             display: 'flex',
             gap: '12px',

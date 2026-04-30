@@ -30,7 +30,6 @@ const bookmarkSchema = new mongoose.Schema(
   }
 );
 
-// Unique compound index: Prevent duplicates for the same user and contest
 bookmarkSchema.index({ userId: 1, contestId: 1 }, { unique: true });
 
 const Bookmark = mongoose.model('Bookmark', bookmarkSchema);

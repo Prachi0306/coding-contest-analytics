@@ -3,48 +3,30 @@ const config = require('../config');
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 
-/**
- * Codeforces API Service.
- *
- * Wraps all interactions with the Codeforces public API.
- * Handles retries, rate limiting, error mapping, and data normalization.
- *
- * API Docs: https://codeforces.com/apiHelp
- */
+
 class CodeforcesService {
   constructor() {
     this.client = axios.create({
       baseURL: config.codeforcesApiBase,
-      timeout: 15000, // 15s timeout
+      timeout: 15000,
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'CodingContestAnalytics/1.0',
       },
     });
 
-    // ─── Rate Limiting State ──────────────────────────
-    // Codeforces allows ~5 requests per second; we enforce a safe margin
+
     this.requestQueue = [];
-    this.minRequestInterval = 250; // ms between requests (4/sec max)
+    this.minRequestInterval = 250;
     this.lastRequestTime = 0;
 
-    // ─── Retry Config ─────────────────────────────────
     this.maxRetries = 3;
-    this.retryDelay = 1000; // Base delay in ms (exponential backoff)
+    this.retryDelay = 1000;
   }
 
-  // ─── Core Request Handler ───────────────────────────
 
-  /**
-   * Make a rate-limited, retry-capable request to the Codeforces API.
-   *
-   * @param {string} endpoint - API endpoint (e.g. '/user.rating')
-   * @param {object} params - Query parameters
-   * @param {number} [retryCount=0] - Current retry attempt
-   * @returns {Promise<object>} API response data (result field)
-   */
+
   async _request(endpoint, params = {}, retryCount = 0) {
-    // ─── Rate Limiting ──────────────────────────────
     const now = Date.now();
     const elapsed = now - this.lastRequestTime;
     if (elapsed < this.minRequestInterval) {
@@ -58,7 +40,6 @@ class CodeforcesService {
 
       const response = await this.client.get(endpoint, { params });
 
-      // Codeforces wraps all responses in { status, result, comment }
       if (response.data.status !== 'OK') {
         const comment = response.data.comment || 'Unknown API error';
         throw new Error(`Codeforces API error: ${comment}`);
@@ -70,18 +51,13 @@ class CodeforcesService {
     }
   }
 
-  // ─── Error Handler with Retry Logic ─────────────────
 
-  /**
-   * Handle API errors with exponential backoff retry.
-   */
+
   async _handleError(error, endpoint, params, retryCount) {
     const status = error.response?.status;
     const cfComment = error.response?.data?.comment;
 
-    // ─── Non-retryable errors ───────────────────────
     if (status === 400) {
-      // Bad request — invalid handle, etc.
       const message = cfComment || 'Invalid request to Codeforces API';
       logger.warn(`Codeforces 400: ${message}`, { endpoint, params });
       throw AppError.badRequest(message);
@@ -92,7 +68,6 @@ class CodeforcesService {
       throw AppError.notFound('Codeforces resource not found. Check the handle/contest ID.');
     }
 
-    // ─── Retryable errors (429, 5xx, network) ───────
     if (retryCount < this.maxRetries) {
       const isRetryable =
         status === 429 ||
@@ -100,10 +75,10 @@ class CodeforcesService {
         error.code === 'ECONNABORTED' ||
         error.code === 'ECONNREFUSED' ||
         error.code === 'ETIMEDOUT' ||
-        !error.response; // Network error
+        !error.response;
 
       if (isRetryable) {
-        const delay = this.retryDelay * Math.pow(2, retryCount); // Exponential backoff
+        const delay = this.retryDelay * Math.pow(2, retryCount);
         logger.warn(
           `Codeforces API retry ${retryCount + 1}/${this.maxRetries} for ${endpoint} in ${delay}ms`,
           { status, error: error.message }
@@ -113,7 +88,6 @@ class CodeforcesService {
       }
     }
 
-    // ─── Exhausted retries or non-retryable ─────────
     logger.error('Codeforces API request failed', {
       endpoint,
       params,
@@ -131,14 +105,8 @@ class CodeforcesService {
     );
   }
 
-  // ─── Public API Methods ─────────────────────────────
 
-  /**
-   * Fetch a user's rating change history.
-   *
-   * @param {string} handle - Codeforces handle
-   * @returns {Promise<Array<object>>} Normalized rating history entries
-   */
+
   async getUserRatingHistory(handle) {
     if (!handle || typeof handle !== 'string') {
       throw AppError.badRequest('A valid Codeforces handle is required');
@@ -146,16 +114,10 @@ class CodeforcesService {
 
     const result = await this._request('/user.rating', { handle: handle.trim() });
 
-    // Normalize the data
     return result.map((entry) => this._normalizeRatingEntry(entry));
   }
 
-  /**
-   * Fetch basic user info from Codeforces.
-   *
-   * @param {string} handle - Codeforces handle
-   * @returns {Promise<object>} User info
-   */
+
   async getUserInfo(handle) {
     if (!handle || typeof handle !== 'string') {
       throw AppError.badRequest('A valid Codeforces handle is required');
@@ -170,28 +132,16 @@ class CodeforcesService {
     return this._normalizeUserInfo(result[0]);
   }
 
-  /**
-   * Fetch the list of all Codeforces contests.
-   *
-   * @param {boolean} [gym=false] - If true, fetch gym contests instead
-   * @returns {Promise<Array<object>>} Normalized contest list
-   */
+
   async getContestList(gym = false) {
     const result = await this._request('/contest.list', { gym });
 
-    // Normalize and return finished, ongoing, and upcoming contests
     return result
       .filter((contest) => ['FINISHED', 'BEFORE', 'CODING'].includes(contest.phase))
       .map((contest) => this._normalizeContest(contest));
   }
 
-  /**
-   * Fetch standings/results for a specific contest.
-   *
-   * @param {number} contestId - Codeforces contest ID
-   * @param {string} [handle] - Optional: filter to a specific user
-   * @returns {Promise<object>} Contest standings data
-   */
+
   async getContestStandings(contestId, handle) {
     const params = { contestId, from: 1, count: 5 };
     if (handle) {
@@ -214,13 +164,7 @@ class CodeforcesService {
     };
   }
 
-  /**
-   * Fetch user submissions (for problem-solving stats).
-   *
-   * @param {string} handle - Codeforces handle
-   * @param {number} [count=100] - Number of submissions to fetch
-   * @returns {Promise<Array<object>>} Normalized submissions
-   */
+
   async getUserSubmissions(handle, count = 100) {
     if (!handle || typeof handle !== 'string') {
       throw AppError.badRequest('A valid Codeforces handle is required');
@@ -248,11 +192,8 @@ class CodeforcesService {
     }));
   }
 
-  // ─── Data Normalization ─────────────────────────────
 
-  /**
-   * Normalize a rating history entry from the Codeforces API.
-   */
+
   _normalizeRatingEntry(entry) {
     return {
       contestId: entry.contestId,
@@ -265,15 +206,13 @@ class CodeforcesService {
     };
   }
 
-  /**
-   * Normalize a contest from the Codeforces API.
-   */
+
   _normalizeContest(contest) {
     return {
       platform: 'codeforces',
       contestId: contest.id,
       name: contest.name,
-      type: contest.type, // CF, IOI, ICPC
+      type: contest.type,
       phase: contest.phase,
       startTime: contest.startTimeSeconds
         ? new Date(contest.startTimeSeconds * 1000).toISOString()
@@ -283,9 +222,7 @@ class CodeforcesService {
     };
   }
 
-  /**
-   * Normalize user info from the Codeforces API.
-   */
+
   _normalizeUserInfo(user) {
     return {
       handle: user.handle,
@@ -301,11 +238,8 @@ class CodeforcesService {
     };
   }
 
-  // ─── Utility Methods ───────────────────────────────
 
-  /**
-   * Format seconds into a human-readable duration string.
-   */
+
   _formatDuration(seconds) {
     if (!seconds) return 'N/A';
     const hours = Math.floor(seconds / 3600);
@@ -315,9 +249,7 @@ class CodeforcesService {
     return `${mins}m`;
   }
 
-  /**
-   * Sleep utility for rate limiting & retry backoff.
-   */
+
   _sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

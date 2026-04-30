@@ -2,23 +2,12 @@ const cron = require('node-cron');
 const cronService = require('../services/cron.service');
 const logger = require('../utils/logger');
 
-/**
- * Cron Job Scheduler — initializes all background cron jobs.
- *
- * Schedule reference:
- *   '0 *​/6 * * *'  →  Every 6 hours (00:00, 06:00, 12:00, 18:00)
- *
- * Call `initCronJobs()` after MongoDB connection is established.
- * Call `stopCronJobs()` during graceful shutdown.
- */
+
 
 let contestSyncTask = null;
 
-/**
- * Initialize and start all cron jobs.
- */
+
 const initCronJobs = () => {
-  // ─── Contest Sync: Every 6 hours ────────────────────
   contestSyncTask = cron.schedule('0 */6 * * *', async () => {
     logger.info('[CRON] Triggering scheduled contest sync...');
     try {
@@ -39,9 +28,7 @@ const initCronJobs = () => {
   logger.info('═══════════════════════════════════════════════');
 };
 
-/**
- * Gracefully stop all cron jobs.
- */
+
 const stopCronJobs = () => {
   if (contestSyncTask) {
     contestSyncTask.stop();

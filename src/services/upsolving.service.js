@@ -5,44 +5,24 @@ const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 
-/**
- * Upsolving Service — manages the upsolving tracker logic.
- *
- * Provides methods to:
- *   - Get a user's upsolve list for a specific contest
- *   - Update a problem's solve status
- *   - Get aggregate upsolving stats
- */
+
 class UpsolvingService {
-  /**
-   * Get the upsolve list for a user in a specific contest.
-   * Returns all problems for the contest, each annotated with
-   * the user's solve status.
-   *
-   * @param {string} userId - MongoDB ObjectId of the user
-   * @param {string} contestId - MongoDB ObjectId of the contest
-   * @returns {Promise<object>} { contest, solvedDuringContest, unsolved, upsolvedAfter, totalProblems }
-   */
+
   async getUpsolveList(userId, contestId) {
-    // 1. Verify contest exists
     const contest = await Contest.findById(contestId);
     if (!contest) {
       throw AppError.notFound('Contest not found');
     }
 
-    // 2. Get all problems for this contest
     const problems = await Problem.find({ contestId }).sort({ index: 1 });
 
-    // 3. Get user's submissions for this contest
     const submissions = await Submission.find({ userId, contestId });
 
-    // 4. Create a lookup map for quick access
     const submissionMap = {};
     submissions.forEach((sub) => {
       submissionMap[sub.problemId] = sub;
     });
 
-    // 5. Categorize problems
     const solvedDuringContest = [];
     const upsolvedAfter = [];
     const unsolved = [];
@@ -93,19 +73,8 @@ class UpsolvingService {
     };
   }
 
-  /**
-   * Update the solve status of a problem for a user.
-   * Idempotent — upserts the submission.
-   *
-   * @param {string} userId
-   * @param {string} contestId
-   * @param {string} problemId
-   * @param {string} status - 'solved' or 'unsolved'
-   * @param {boolean} solvedDuringContest
-   * @returns {Promise<object>} The updated submission
-   */
+
   async updateSolveStatus(userId, contestId, problemId, status, solvedDuringContest = false) {
-    // Verify the problem exists
     const problem = await Problem.findOne({ contestId, problemId });
     if (!problem) {
       throw AppError.notFound('Problem not found for this contest');
@@ -127,12 +96,7 @@ class UpsolvingService {
     return submission;
   }
 
-  /**
-   * Get aggregate upsolving stats for a user across all contests.
-   *
-   * @param {string} userId
-   * @returns {Promise<object>} { totalContests, totalSolvedDuringContest, totalUpsolved, totalUnsolved }
-   */
+
   async getUserUpsolveStats(userId) {
     const objectIdUser = new mongoose.Types.ObjectId(userId);
 
@@ -172,12 +136,7 @@ class UpsolvingService {
     };
   }
 
-  /**
-   * Get contests that have problems registered (for the filter dropdown).
-   *
-   * @param {string} userId
-   * @returns {Promise<Array>} Array of contests with problem counts
-   */
+
   async getContestsWithProblems(userId) {
     const objectIdUser = new mongoose.Types.ObjectId(userId);
 

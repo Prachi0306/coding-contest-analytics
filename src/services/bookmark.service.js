@@ -5,22 +5,13 @@ const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 
 class BookmarkService {
-  /**
-   * Add a contest to the user's schedule.
-   * Idempotent: safe to call multiple times.
-   *
-   * @param {string} userId - MongoDB ObjectId of the user
-   * @param {string} contestId - MongoDB ObjectId of the contest
-   * @returns {Promise<object>} The created/updated bookmark
-   */
+
   async addBookmark(userId, contestId) {
-    // 1. Verify contest exists
     const contest = await Contest.findById(contestId);
     if (!contest) {
       throw AppError.notFound('Contest not found');
     }
 
-    // 2. Upsert bookmark (idempotent operation)
     const bookmark = await Bookmark.findOneAndUpdate(
       { userId, contestId },
       {
@@ -38,14 +29,7 @@ class BookmarkService {
     return bookmark;
   }
 
-  /**
-   * Remove a contest from the user's schedule.
-   * Validates ownership implicitly by matching userId and contestId.
-   *
-   * @param {string} userId - MongoDB ObjectId of the user
-   * @param {string} contestId - MongoDB ObjectId of the contest
-   * @returns {Promise<void>}
-   */
+
   async removeBookmark(userId, contestId) {
     const result = await Bookmark.findOneAndDelete({ userId, contestId });
 
@@ -56,13 +40,7 @@ class BookmarkService {
     logger.info(`User ${userId} removed bookmark for contest ${contestId}`);
   }
 
-  /**
-   * Get the user's schedule (all bookmarked contests),
-   * sorted by upcoming contests first (startTime).
-   *
-   * @param {string} userId - MongoDB ObjectId of the user
-   * @returns {Promise<Array>} Array of populated contest objects
-   */
+
   async getUserSchedule(userId) {
     const objectIdUser = new mongoose.Types.ObjectId(userId);
 
@@ -91,7 +69,7 @@ class BookmarkService {
     return schedule.map((item) => ({
       bookmarkId: item._id,
       bookmarkedAt: item.createdAt,
-      ...item.contest, // Spread contest fields directly for frontend convenience
+      ...item.contest,
     }));
   }
 }

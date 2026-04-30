@@ -68,7 +68,6 @@ export default function DashboardPage() {
     }
   };
 
-  // --- Graph Normalization ---
   const allEvents = [];
   platforms.forEach(p => {
     (p.contests || []).forEach(c => {
@@ -103,20 +102,16 @@ export default function DashboardPage() {
 
   const recentContests = [...allEvents].reverse().slice(0, 8);
 
-  // Donut chart data — contests per platform
   const contestsPerPlatform = platforms.map(p => ({
     name: PLATFORM_COLORS[p.platform]?.label || p.platform,
     value: (p.contests || []).length,
     platform: p.platform,
   })).filter(d => d.value > 0);
 
-  // Calculate total contests across all platforms
   const totalContests = platforms.reduce((sum, p) => sum + (p.contests || []).length, 0);
 
-  // Find user's leaderboard rank
   const userRank = leaderboard.findIndex(u => u.userId === user?.id) + 1;
 
-  // Compute max rating across all platforms
   const maxRating = platforms.reduce((max, p) => Math.max(max, p.maxRating || 0), 0);
 
   if (loading) {
@@ -133,7 +128,6 @@ export default function DashboardPage() {
   return (
     <div className="page">
       <div className="container">
-        {/* Profile Hero */}
         <div className="card" style={{ marginBottom: 'var(--space-xl)', padding: '28px 32px' }}>
           <div className="profile-hero" style={{ marginBottom: 0 }}>
             <div className="profile-avatar">
@@ -163,14 +157,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Sync Messages */}
         {syncMsg && (
           <div className={`alert ${(/fail|error|timeout|exceeded/i).test(syncMsg) ? 'alert--error' : 'alert--success'}`}>
             {syncMsg}
           </div>
         )}
 
-        {/* Failed Platforms Warning */}
         {failedPlatforms.length > 0 && (
           <div className="alert alert--warning" style={{ marginBottom: '24px' }}>
             <strong>⚠️ Warning:</strong> The following platforms failed to sync:
@@ -192,7 +184,6 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Stats Row */}
             <div className="card" style={{ marginBottom: 'var(--space-xl)', padding: '24px 32px' }}>
               <div className="dashboard-stats-row" style={{ marginBottom: 0 }}>
                 {platforms.map(platform => {
@@ -223,7 +214,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Rating Chart (Multi-Platform) */}
             {chartData.length > 0 && (
               <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
                 <div className="card-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
@@ -346,9 +336,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Recent Submissions + Donut */}
             <div className="submissions-grid">
-              {/* Recent Contests Table */}
               {recentContests.length > 0 && (
                 <div className="card">
                   <div className="card-header">
@@ -392,7 +380,6 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Donut Chart */}
               {contestsPerPlatform.length > 0 && (
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <h2 className="card-title" style={{ marginBottom: '16px', alignSelf: 'flex-start' }}>
@@ -429,7 +416,6 @@ export default function DashboardPage() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Center text */}
                     <div style={{
                       position: 'absolute',
                       top: '50%',
@@ -445,7 +431,6 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  {/* Legend */}
                   <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     {contestsPerPlatform.map(d => {
                       const pc = PLATFORM_COLORS[d.platform] || {};

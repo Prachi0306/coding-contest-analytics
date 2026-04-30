@@ -5,30 +5,14 @@ const userRepository = require('../repositories/user.repository');
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 
-/**
- * Data Sync Service.
- *
- * Orchestrates fetching data from external APIs (Codeforces)
- * and persisting it to Contest + UserStats models.
- *
- * All writes are idempotent — safe to run multiple times
- * without creating duplicates (enforced by compound unique indexes
- * + upsert operations).
- */
-class DataSyncService {
-  // ─── Contest Sync ───────────────────────────────────
 
-  /**
-   * Sync all Codeforces contests into the Contest collection.
-   * Uses bulkUpsertContests — idempotent and deduplicated.
-   *
-   * @returns {Promise<object>} { synced, total, result }
-   */
+class DataSyncService {
+
+
   async syncCodeforcesContests() {
     logger.info('Starting Codeforces contest sync...');
 
     try {
-      // 1. Fetch all finished contests from Codeforces API
       const contests = await codeforcesService.getContestList(false);
 
       if (!contests || contests.length === 0) {
@@ -36,7 +20,6 @@ class DataSyncService {
         return { synced: 0, total: 0, result: null };
       }
 
-      // 2. Normalize data for the Contest model
       const contestDocs = contests.map((c) => ({
         platform: 'codeforces',
         contestId: c.contestId,
@@ -47,7 +30,6 @@ class DataSyncService {
         duration: c.duration || 0,
       }));
 
-      // 3. Bulk upsert — duplicates are handled by the unique index
       const result = await Contest.bulkUpsertContests(contestDocs);
 
       const upserted = result.upsertedCount || 0;
@@ -74,9 +56,7 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Sync LeetCode global contests.
-   */
+
   async syncLeetCodeContests() {
     logger.info('Starting LeetCode contest sync...');
     try {
@@ -124,9 +104,7 @@ class DataSyncService {
     }
   }
 
-  /**
-   * Sync CodeChef global contests.
-   */
+
   async syncCodeChefContests() {
     logger.info('Starting CodeChef contest sync...');
     try {
@@ -145,7 +123,7 @@ class DataSyncService {
           type: 'OTHER',
           phase,
           startTime: new Date(c.contest_start_date_iso),
-          duration: parseInt(c.contest_duration, 10) * 60, // minutes to seconds
+          duration: parseInt(c.contest_duration, 10) * 60,
         };
       };
 
@@ -165,19 +143,9 @@ class DataSyncService {
     }
   }
 
-  // ─── User Rating History Sync ──────────────────────
 
-  /**
-   * Sync a user's Codeforces rating history into UserStats.
-   * Fetches from the Codeforces API and bulk upserts — fully idempotent.
-   *
-   * @param {string} userId - MongoDB User ID
-   * @param {string} codeforcesHandle - Codeforces username
-   * @returns {Promise<object>} { synced, total, result }
-   * @throws {AppError} 400 if handle is missing, 404 if user not found
-   */
+
   async syncUserRatingHistory(userId, codeforcesHandle) {
-    // ─── Validate inputs ──────────────────────────────
     if (!userId) {
       throw AppError.badRequest('User ID is required for rating sync');
     }
@@ -185,7 +153,6 @@ class DataSyncService {
       throw AppError.badRequest('Codeforces handle is required for rating sync');
     }
 
-    // ─── Verify user exists ───────────────────────────
     const user = await userRepository.findById(userId);
     if (!user) {
       throw AppError.notFound('User not found');
@@ -194,7 +161,6 @@ class DataSyncService {
     logger.info(`Starting rating sync for user ${userId} (handle: ${codeforcesHandle})`);
 
     try {
-      // 1. Fetch rating history from Codeforces
       const ratingHistory = await codeforcesService.getUserRatingHistory(codeforcesHandle);
 
       if (!ratingHistory || ratingHistory.length === 0) {
@@ -202,7 +168,6 @@ class DataSyncService {
         return { synced: 0, total: 0 };
       }
 
-      // 2. Transform into UserStats documents
       const statsDocs = ratingHistory.map((entry) => ({
         userId,
         platform: 'codeforces',
@@ -215,7 +180,6 @@ class DataSyncService {
         timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
       }));
 
-      // 3. Validate — filter out entries with missing required fields
       const validStats = statsDocs.filter((stat) => {
         if (!stat.contestId || stat.rank === undefined || stat.rank === null) {
           logger.warn('Skipping invalid stats entry', { stat });
@@ -229,7 +193,6 @@ class DataSyncService {
         return { synced: 0, total: ratingHistory.length, skipped: ratingHistory.length };
       }
 
-      // 4. Bulk upsert — duplicates handled by unique index
       const result = await UserStats.bulkUpsertStats(validStats);
 
       const upserted = result.upsertedCount || 0;
@@ -259,17 +222,9 @@ class DataSyncService {
     }
   }
 
-  // ─── Full User Sync ────────────────────────────────
 
-  /**
-   * Full sync for a user: contests + rating history.
-   * Orchestrates both sync operations and returns combined results.
-   *
-   * @param {string} userId - MongoDB User ID
-   * @returns {Promise<object>} { contests, ratings }
-   */
+
   async syncUserData(userId) {
-    // ─── Lookup user and their handle ─────────────────
     const user = await userRepository.findById(userId);
     if (!user) {
       throw AppError.notFound('User not found');
@@ -290,7 +245,6 @@ class DataSyncService {
       errors: [],
     };
 
-    // ─── Sync user's rating history ───────────────────
     try {
       results.ratings = await this.syncUserRatingHistory(userId, handle);
     } catch (error) {
@@ -298,11 +252,8 @@ class DataSyncService {
       results.errors.push({ type: 'ratings', message: error.message });
     }
 
-    // Note: Global contest sync (syncCodeforcesContests) was removed from here.
-    // It should be handled by an independent background cron/worker job (Step 12)
-    // to vastly reduce API calls and improve frontend response times during manual syncs.
 
-    // ─── If both failed, throw ────────────────────────
+
     if (results.errors.length === 2) {
       throw AppError.serviceUnavailable(
         'Data sync failed completely. Please try again later.'
@@ -318,14 +269,8 @@ class DataSyncService {
     return results;
   }
 
-  // ─── Batch Sync (All Users) ────────────────────────
 
-  /**
-   * Sync rating history for all users that have a Codeforces handle.
-   * Used by background jobs (Step 12).
-   *
-   * @returns {Promise<object>} { totalUsers, synced, failed, results }
-   */
+
   async syncAllUsers() {
     const User = require('../models/User');
 
@@ -364,11 +309,9 @@ class DataSyncService {
           status: 'failed',
           error: error.message,
         });
-        // Don't throw — continue with next user
         logger.warn(`Sync failed for ${user.username}: ${error.message}`);
       }
 
-      // ─── Rate limit between users ───────────────────
       await this._sleep(500);
     }
 
@@ -381,19 +324,14 @@ class DataSyncService {
     return results;
   }
 
-  // ─── Helpers ───────────────────────────────────────
 
-  /**
-   * Map Codeforces contest type string to our enum.
-   */
+
   _mapContestType(cfType) {
     const typeMap = { CF: 'CF', IOI: 'IOI', ICPC: 'ICPC' };
     return typeMap[cfType] || 'OTHER';
   }
 
-  /**
-   * Sleep utility for rate limiting.
-   */
+
   _sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

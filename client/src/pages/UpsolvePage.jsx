@@ -23,7 +23,6 @@ export default function UpsolvePage() {
   const [loading, setLoading] = useState(true);
   const [loadingProblems, setLoadingProblems] = useState(false);
 
-  // Fetch available contests and stats
   useEffect(() => {
     const fetchInitial = async () => {
       setLoading(true);
@@ -43,7 +42,6 @@ export default function UpsolvePage() {
     fetchInitial();
   }, []);
 
-  // Fetch upsolve list when a contest is selected
   const handleSelectContest = useCallback(async (contestId) => {
     setSelectedContest(contestId);
     setLoadingProblems(true);
@@ -58,7 +56,6 @@ export default function UpsolvePage() {
     }
   }, []);
 
-  // Toggle solve status
   const handleToggleStatus = async (problemId, currentStatus) => {
     const newStatus = currentStatus === 'solved' ? 'unsolved' : 'solved';
     try {
@@ -66,9 +63,7 @@ export default function UpsolvePage() {
         status: newStatus,
         solvedDuringContest: false,
       });
-      // Refresh the upsolve list
       handleSelectContest(selectedContest);
-      // Refresh stats
       const statsRes = await upsolveAPI.getStats();
       setStats(statsRes.data || null);
     } catch (err) {
@@ -79,7 +74,6 @@ export default function UpsolvePage() {
   return (
     <div className="page">
       <div className="container">
-        {/* ── Header ───────────────────────────── */}
         <div className="section-header">
           <div>
             <h1 className="section-title">Upsolve Tracker</h1>
@@ -97,7 +91,6 @@ export default function UpsolvePage() {
           </div>
         ) : (
           <>
-            {/* ── Stats Overview ─────────────────── */}
             {stats && (
               <div className="stats-grid" style={{ marginBottom: 'var(--space-xl)' }}>
                 <div className="stat-card">
@@ -131,7 +124,6 @@ export default function UpsolvePage() {
               </div>
             )}
 
-            {/* ── Contest Filter ─────────────────── */}
             <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
               <div className="card-header">
                 <h2 className="card-title">Select a Contest</h2>
@@ -173,7 +165,6 @@ export default function UpsolvePage() {
               )}
             </div>
 
-            {/* ── Problem List ───────────────────── */}
             {loadingProblems ? (
               <div className="loading-page">
                 <div className="spinner" />
@@ -181,7 +172,6 @@ export default function UpsolvePage() {
               </div>
             ) : upsolveData ? (
               <div className="upsolve-results">
-                {/* Contest Info */}
                 <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
                     {upsolveData.contest.name}
@@ -200,7 +190,6 @@ export default function UpsolvePage() {
                   </div>
                 </div>
 
-                {/* Solved During Contest */}
                 {upsolveData.solvedDuringContest.length > 0 && (
                   <ProblemSection
                     title="Solved During Contest"
@@ -213,7 +202,6 @@ export default function UpsolvePage() {
                   />
                 )}
 
-                {/* Upsolved After */}
                 {upsolveData.upsolvedAfter.length > 0 && (
                   <ProblemSection
                     title="Upsolved After Contest"
@@ -227,7 +215,6 @@ export default function UpsolvePage() {
                   />
                 )}
 
-                {/* Unsolved */}
                 {upsolveData.unsolved.length > 0 && (
                   <ProblemSection
                     title="Unsolved Problems"
@@ -262,7 +249,6 @@ export default function UpsolvePage() {
   );
 }
 
-// ─── Problem Section Component ───────────────────────
 function ProblemSection({ title, icon, iconClass, problems, statusLabel, statusClass, onToggle, toggleLabel }) {
   return (
     <div className="card" style={{ marginBottom: 'var(--space-md)' }}>

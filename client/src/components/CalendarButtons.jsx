@@ -1,17 +1,12 @@
 import React from 'react';
 
-/**
- * Format a date for Google Calendar (YYYYMMDDTHHMMSSZ)
- */
+
 const formatGoogleDate = (date) => {
   return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 };
 
-/**
- * Component that renders Calendar integration buttons
- */
+
 export default function CalendarButtons({ contest }) {
-  // Google Calendar URL Generation
   const getGoogleCalendarUrl = () => {
     const startTime = new Date(contest.startTime);
     const endTime = new Date(startTime.getTime() + contest.duration * 1000);
@@ -26,7 +21,6 @@ export default function CalendarButtons({ contest }) {
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
   };
 
-  // ICS Download API Endpoint
   const getIcsDownloadUrl = () => {
     return `/api/calendar/${contest._id}`;
   };

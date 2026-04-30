@@ -34,7 +34,6 @@ export default function LoginPage() {
 
   return (
     <div className="login-layout">
-      {/* Left — Form Side */}
       <div className="login-form-side">
         <div className="login-card">
           <div style={{ marginBottom: '32px' }}>
@@ -114,7 +113,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right — Visual / Illustration Side */}
       <div className="login-visual-side">
         <div className="login-visual-content">
           <div style={{
@@ -137,7 +135,6 @@ export default function LoginPage() {
             Track ratings across Codeforces, LeetCode & CodeChef. Visualize your growth and compete globally.
           </p>
 
-          {/* Mini stats preview */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',

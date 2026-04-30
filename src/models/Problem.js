@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
-/**
- * Problem Schema — represents a single problem within a contest.
- *
- * Used by the Upsolving Tracker to map problems to contests
- * and track which ones a user has solved.
- */
+
 const problemSchema = new mongoose.Schema(
   {
     contestId: {
@@ -53,7 +48,6 @@ const problemSchema = new mongoose.Schema(
   }
 );
 
-// Unique compound index: one problem per contest per platform
 problemSchema.index({ contestId: 1, problemId: 1, platform: 1 }, { unique: true });
 
 const Problem = mongoose.model('Problem', problemSchema);

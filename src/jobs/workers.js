@@ -5,23 +5,14 @@ const dataSyncService = require('../services/dataSync.service');
 const platformAggregator = require('../services/platformAggregator.service');
 const logger = require('../utils/logger');
 
-/**
- * BullMQ Workers.
- *
- * Each worker processes jobs from a specific queue.
- * Workers use their own Redis connections (BullMQ best practice).
- */
+
 
 let workers = [];
 
-/**
- * Create and start all workers.
- * Call once during server startup.
- */
+
 const startWorkers = () => {
 const UserStats = require('../models/UserStats');
 
-  // ─── Shared Persistence Helper ──────────────────────
   const persistPlatformData = async (userId, data) => {
     if (data.status === 'failed' || !data.contests || data.contests.length === 0) {
       return 0;
@@ -46,7 +37,6 @@ const UserStats = require('../models/UserStats');
     return (result.upsertedCount || 0) + (result.modifiedCount || 0);
   };
 
-  // ─── Contest Sync Worker (Codeforces only standard contests) ─
   const contestWorker = new Worker(
     QUEUE_NAMES.SYNC_CONTESTS,
     async (job) => {
@@ -57,12 +47,11 @@ const UserStats = require('../models/UserStats');
     },
     {
       connection: createRedisConnection('worker-contests'),
-      concurrency: 1, // One contest sync at a time
+      concurrency: 1,
       limiter: { max: 1, duration: 60000 },
     }
   );
 
-  // ─── Codeforces Sync Worker ───────────────────────
   const codeforcesWorker = new Worker(
     QUEUE_NAMES.SYNC_CODEFORCES,
     async (job) => {
@@ -83,7 +72,6 @@ const UserStats = require('../models/UserStats');
     }
   );
 
-  // ─── LeetCode Sync Worker ─────────────────────────
   const leetcodeWorker = new Worker(
     QUEUE_NAMES.SYNC_LEETCODE,
     async (job) => {
@@ -103,7 +91,6 @@ const UserStats = require('../models/UserStats');
     }
   );
 
-  // ─── CodeChef Sync Worker ─────────────────────────
   const codechefWorker = new Worker(
     QUEUE_NAMES.SYNC_CODECHEF,
     async (job) => {
@@ -123,7 +110,6 @@ const UserStats = require('../models/UserStats');
     }
   );
 
-  // ─── Batch Sync Worker ────────────────────────────
   const batchSyncWorker = new Worker(
     QUEUE_NAMES.SYNC_ALL_USERS,
     async (job) => {
@@ -138,11 +124,10 @@ const UserStats = require('../models/UserStats');
     },
     {
       connection: createRedisConnection('worker-batch-sync'),
-      concurrency: 1, // Only one batch sync at a time
+      concurrency: 1,
     }
   );
 
-  // ─── Event Handlers ───────────────────────────────
   const attachEvents = (worker, name) => {
     worker.on('completed', (job, result) => {
       logger.info(`[${name}] Job ${job.id} completed`, {
@@ -182,9 +167,7 @@ const UserStats = require('../models/UserStats');
   return workers;
 };
 
-/**
- * Stop all workers gracefully.
- */
+
 const stopWorkers = async () => {
   for (const worker of workers) {
     await worker.close();

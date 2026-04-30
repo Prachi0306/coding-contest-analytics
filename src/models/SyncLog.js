@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
-/**
- * SyncLog Schema — tracks background sync job executions.
- *
- * Every time the cron job runs, a log entry is created
- * to record the outcome, timing, and any errors.
- */
+
 const syncLogSchema = new mongoose.Schema(
   {
     jobName: {
@@ -37,7 +32,6 @@ const syncLogSchema = new mongoose.Schema(
   }
 );
 
-// Index for querying recent logs efficiently
 syncLogSchema.index({ createdAt: -1 });
 
 const SyncLog = mongoose.model('SyncLog', syncLogSchema);

@@ -9,7 +9,6 @@ const PLATFORM_CONFIG = {
   codechef: { label: 'CodeChef', color: '#22d3ee', icon: '🔵' },
 };
 
-// ─── Helpers ────────────────────────────────────────
 
 function formatDuration(contest) {
   if (contest.durationFormatted) return contest.durationFormatted;
@@ -62,7 +61,6 @@ function getCountdown(startTime) {
   return `Starts in ${m}m`;
 }
 
-// ─── Ongoing Contest Card ───────────────────────────
 
 function OngoingCard({ contest, platform }) {
   const [timeLeft, setTimeLeft] = useState('');
@@ -123,7 +121,6 @@ function OngoingCard({ contest, platform }) {
   );
 }
 
-// ─── Upcoming Contest Card ──────────────────────────
 
 function UpcomingCard({ contest, platform, isFirst }) {
   const [countdown, setCountdown] = useState('');
@@ -180,7 +177,6 @@ function UpcomingCard({ contest, platform, isFirst }) {
   );
 }
 
-// ─── Main Page Component ────────────────────────────
 
 export default function ContestsPage() {
   const [ongoing, setOngoing] = useState([]);
@@ -205,7 +201,6 @@ export default function ContestsPage() {
       setPast(data.past?.contests || []);
       setPastPagination(data.past?.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch {
-      // silent
     } finally {
       setLoading(false);
     }
@@ -233,7 +228,6 @@ export default function ContestsPage() {
   return (
     <div className="page">
       <div className="container">
-        {/* ── Header ─────────────────────────────── */}
         <div className="contests-header">
           <div>
             <h1>Contests Tracker</h1>
@@ -244,7 +238,6 @@ export default function ContestsPage() {
           </div>
         </div>
 
-        {/* ── Toolbar ────────────────────────────── */}
         <div className="contests-toolbar">
           <div className="platform-filters">
             {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => (
@@ -267,9 +260,7 @@ export default function ContestsPage() {
           </div>
         ) : (
           <>
-            {/* ═══════════════════════════════════════ */}
-            {/* ── ONGOING SECTION ────────────────── */}
-            {/* ═══════════════════════════════════════ */}
+
             {ongoing.length > 0 && (
               <section className="contest-section" id="ongoing-contests">
                 <div className="contest-section-header">
@@ -287,9 +278,7 @@ export default function ContestsPage() {
               </section>
             )}
 
-            {/* ═══════════════════════════════════════ */}
-            {/* ── UPCOMING SECTION ───────────────── */}
-            {/* ═══════════════════════════════════════ */}
+
             {upcoming.length > 0 ? (
               <section className="contest-section" id="upcoming-contests">
                 <div className="contest-section-header">
@@ -323,9 +312,7 @@ export default function ContestsPage() {
               )
             )}
 
-            {/* ═══════════════════════════════════════ */}
-            {/* ── PAST SECTION ───────────────────── */}
-            {/* ═══════════════════════════════════════ */}
+
             <section className="contest-section" id="past-contests">
               <div className="contest-past-toggle-wrapper">
                 <button
@@ -347,7 +334,6 @@ export default function ContestsPage() {
 
               {showPast && (
                 <div className="contest-past-content" style={{ animation: 'slideUp 0.3s ease' }}>
-                  {/* Search for past contests */}
                   <form onSubmit={handleSearch} className="search-box" style={{ marginBottom: 'var(--space-md)' }}>
                     <input
                       id="past-contest-search"
@@ -412,7 +398,6 @@ export default function ContestsPage() {
                         </div>
                       </div>
 
-                      {/* Pagination */}
                       <div className="pagination">
                         <button
                           className="btn btn--secondary btn--sm"

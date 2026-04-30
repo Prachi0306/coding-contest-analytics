@@ -1,10 +1,8 @@
 const mongoose = require('mongoose');
 
-// ─── Constants ──────────────────────────────────────────
 
 const PLATFORMS = ['codeforces', 'leetcode', 'codechef'];
 
-// ─── Schema Definition ─────────────────────────────────
 
 const userStatsSchema = new mongoose.Schema(
   {
@@ -66,7 +64,7 @@ const userStatsSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt
+    timestamps: true,
     toJSON: {
       transform(doc, ret) {
         delete ret.__v;
@@ -82,26 +80,15 @@ const userStatsSchema = new mongoose.Schema(
   }
 );
 
-// ─── Indexes ────────────────────────────────────────────
 
-// Compound unique index: one stat entry per user per contest per platform
 userStatsSchema.index({ userId: 1, platform: 1, contestId: 1 }, { unique: true });
 
-// Query user's stats for a platform, sorted by contest time
 userStatsSchema.index({ userId: 1, platform: 1, timestamp: -1 });
 
-// Leaderboard queries: find top-rated users per platform natively bypassing full scans.
 userStatsSchema.index({ platform: 1, userId: 1, timestamp: -1 });
 
-// ─── Static Methods ─────────────────────────────────────
 
-/**
- * Upsert a user's stats for a specific contest.
- * Idempotent: safe to call multiple times with the same data.
- *
- * @param {object} statsData - { userId, platform, contestId, rank, oldRating, newRating, ratingChange, contestName, timestamp }
- * @returns {Promise<Document>}
- */
+
 userStatsSchema.statics.upsertStats = function (statsData) {
   const { userId, platform, contestId, ...updateFields } = statsData;
 
@@ -114,13 +101,7 @@ userStatsSchema.statics.upsertStats = function (statsData) {
   );
 };
 
-/**
- * Bulk upsert stats — idempotent batch insert/update.
- * Used when syncing rating history from external APIs.
- *
- * @param {Array<object>} statsArray - Array of stat data objects
- * @returns {Promise<object>} Bulk write result
- */
+
 userStatsSchema.statics.bulkUpsertStats = function (statsArray) {
   if (!statsArray || statsArray.length === 0) {
     return Promise.resolve({ modifiedCount: 0, upsertedCount: 0 });
@@ -147,39 +128,21 @@ userStatsSchema.statics.bulkUpsertStats = function (statsArray) {
   return this.bulkWrite(operations, { ordered: false });
 };
 
-/**
- * Get a user's full rating history for a platform, sorted by time.
- *
- * @param {string} userId - User's ObjectId
- * @param {string} platform - Platform name
- * @returns {Promise<Array<Document>>}
- */
+
 userStatsSchema.statics.getRatingHistory = function (userId, platform) {
   return this.find({ userId, platform: platform.toLowerCase() })
     .sort({ timestamp: 1 })
     .lean();
 };
 
-/**
- * Get a user's latest rating for a platform.
- *
- * @param {string} userId - User's ObjectId
- * @param {string} platform - Platform name
- * @returns {Promise<Document|null>}
- */
+
 userStatsSchema.statics.getLatestRating = function (userId, platform) {
   return this.findOne({ userId, platform: platform.toLowerCase() })
     .sort({ timestamp: -1 })
     .lean();
 };
 
-/**
- * Get contest history for a user across all platforms.
- *
- * @param {string} userId - User's ObjectId
- * @param {object} [options] - { limit, skip, platform }
- * @returns {Promise<Array<Document>>}
- */
+
 userStatsSchema.statics.getContestHistory = function (userId, options = {}) {
   const { limit = 50, skip = 0, platform } = options;
 
@@ -193,13 +156,7 @@ userStatsSchema.statics.getContestHistory = function (userId, options = {}) {
     .lean();
 };
 
-/**
- * Get aggregated stats summary for a user on a platform.
- *
- * @param {string} userId - User's ObjectId
- * @param {string} platform - Platform name
- * @returns {Promise<object>} { totalContests, currentRating, maxRating, bestRank, avgRank, totalPositiveChanges, totalNegativeChanges }
- */
+
 userStatsSchema.statics.getStatsSummary = function (userId, platform) {
   return this.aggregate([
     { $match: { userId: new mongoose.Types.ObjectId(userId), platform: platform.toLowerCase() } },
@@ -238,13 +195,7 @@ userStatsSchema.statics.getStatsSummary = function (userId, platform) {
   ]).then((results) => results[0] || null);
 };
 
-/**
- * Get leaderboard — top users by latest rating on a platform.
- *
- * @param {string} platform - Platform name
- * @param {number} [limit=20] - Number of users to return
- * @returns {Promise<Array<object>>} Sorted array of { userId, newRating, rank, contestName }
- */
+
 userStatsSchema.statics.getLeaderboard = function (platform, limit = 20) {
   return this.aggregate([
     { $match: { platform: platform.toLowerCase() } },
@@ -285,7 +236,6 @@ userStatsSchema.statics.getLeaderboard = function (platform, limit = 20) {
   ]);
 };
 
-// ─── Model ──────────────────────────────────────────────
 
 const UserStats = mongoose.model('UserStats', userStatsSchema);
 
