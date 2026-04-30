@@ -12,6 +12,9 @@ let workers = [];
 
 const startWorkers = () => {
 const UserStats = require('../models/UserStats');
+const Problem = require('../models/Problem');
+const Submission = require('../models/Submission');
+const Contest = require('../models/Contest');
 
   const persistPlatformData = async (userId, data) => {
     if (data.status === 'failed' || !data.contests || data.contests.length === 0) {
@@ -35,6 +38,91 @@ const UserStats = require('../models/UserStats');
 
     const result = await UserStats.bulkUpsertStats(validStats);
     return (result.upsertedCount || 0) + (result.modifiedCount || 0);
+  };
+
+  const persistUpsolveData = async (userId, data) => {
+    if (!data.submissions || data.submissions.length === 0 || data.platform !== 'codeforces') return;
+
+    const contestIds = [...new Set(data.submissions.map(s => String(s.contestId)).filter(Boolean))];
+    const contests = await Contest.find({ platform: data.platform, contestId: { $in: contestIds } });
+    
+    const contestMap = {};
+    contests.forEach(c => {
+      contestMap[c.contestId] = c._id;
+    });
+
+    const problemsMap = new Map();
+    const subsMap = new Map();
+
+    for (const sub of data.submissions) {
+      if (!sub.problem || !sub.problem.contestId || !sub.problem.index) continue;
+      const internalContestId = contestMap[String(sub.problem.contestId)];
+      if (!internalContestId) continue;
+
+      const probKey = `${internalContestId}-${sub.problem.index}`;
+      if (!problemsMap.has(probKey)) {
+        problemsMap.set(probKey, {
+          contestId: internalContestId,
+          problemId: sub.problem.index,
+          name: sub.problem.name || 'Unknown',
+          index: sub.problem.index,
+          platform: data.platform,
+          difficulty: sub.problem.rating ? String(sub.problem.rating) : '',
+          url: `https://codeforces.com/contest/${sub.problem.contestId}/problem/${sub.problem.index}`,
+        });
+      }
+
+      const subKey = `${internalContestId}-${sub.problem.index}`;
+      const isSolved = sub.verdict === 'OK';
+      const isContestant = sub.participantType === 'CONTESTANT' || sub.participantType === 'OUT_OF_COMPETITION';
+      
+      const existing = subsMap.get(subKey);
+      
+      let solvedDuringContest = false;
+      let status = 'unsolved';
+      let solvedAt = null;
+
+      if (existing) {
+        solvedDuringContest = existing.solvedDuringContest || (isSolved && isContestant);
+        status = existing.status === 'solved' || isSolved ? 'solved' : 'unsolved';
+        solvedAt = isSolved && !existing.solvedAt ? new Date(sub.timestamp) : existing.solvedAt;
+      } else {
+        solvedDuringContest = isSolved && isContestant;
+        status = isSolved ? 'solved' : 'unsolved';
+        solvedAt = isSolved ? new Date(sub.timestamp) : null;
+      }
+
+      subsMap.set(subKey, {
+        userId,
+        contestId: internalContestId,
+        problemId: sub.problem.index,
+        status,
+        solvedDuringContest,
+        solvedAt,
+      });
+    }
+
+    if (problemsMap.size > 0) {
+      const problemOps = Array.from(problemsMap.values()).map(p => ({
+        updateOne: {
+          filter: { contestId: p.contestId, problemId: p.problemId, platform: p.platform },
+          update: { $set: p },
+          upsert: true
+        }
+      }));
+      await Problem.bulkWrite(problemOps, { ordered: false });
+    }
+
+    if (subsMap.size > 0) {
+      const subOps = Array.from(subsMap.values()).map(s => ({
+        updateOne: {
+          filter: { userId: s.userId, contestId: s.contestId, problemId: s.problemId },
+          update: { $set: s },
+          upsert: true
+        }
+      }));
+      await Submission.bulkWrite(subOps, { ordered: false });
+    }
   };
 
   const contestWorker = new Worker(
@@ -62,6 +150,7 @@ const UserStats = require('../models/UserStats');
       if (data.status === 'failed') throw new Error(data.error);
 
       const savedCount = await persistPlatformData(userId, data);
+      await persistUpsolveData(userId, data);
       logger.info(`[Worker] Codeforces sync complete: ${job.id}`, { savedCount });
       return data;
     },

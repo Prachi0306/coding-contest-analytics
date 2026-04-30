@@ -1,10 +1,11 @@
 const Problem = require('../models/Problem');
 const Submission = require('../models/Submission');
 const Contest = require('../models/Contest');
+const User = require('../models/User');
+const codeforcesService = require('./codeforces.service');
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
-
 
 class UpsolvingService {
 
@@ -140,11 +141,11 @@ class UpsolvingService {
   async getContestsWithProblems(userId) {
     const objectIdUser = new mongoose.Types.ObjectId(userId);
 
-    const contests = await Problem.aggregate([
+    const contests = await Submission.aggregate([
+      { $match: { userId: objectIdUser } },
       {
         $group: {
           _id: '$contestId',
-          platform: { $first: '$platform' },
           totalProblems: { $sum: 1 },
         },
       },
@@ -161,6 +162,7 @@ class UpsolvingService {
       {
         $project: {
           _id: '$contest._id',
+          contestId: '$contest.contestId',
           name: '$contest.name',
           platform: '$contest.platform',
           startTime: '$contest.startTime',
@@ -170,6 +172,122 @@ class UpsolvingService {
     ]);
 
     return contests;
+  }
+  async syncContestProblems(userId, platform, externalContestId) {
+    if (platform !== 'codeforces') {
+      throw AppError.badRequest('Manual contest sync is currently only supported for Codeforces');
+    }
+
+    const user = await User.findById(userId);
+    if (!user) throw AppError.notFound('User not found');
+    const handle = user.platformHandles?.codeforces || user.handles?.codeforces;
+    if (!handle) throw AppError.badRequest('No Codeforces handle configured');
+
+    // The user requested to track ONE contest at a time.
+    // Clear any previous Codeforces submissions before syncing this one.
+    const codeforcesContests = await Contest.find({ platform: 'codeforces' }).select('_id');
+    const cfContestIds = codeforcesContests.map(c => c._id);
+    await Submission.deleteMany({ userId: user._id, contestId: { $in: cfContestIds } });
+
+    const data = await codeforcesService.getContestDetailsAndProblems(externalContestId);
+    if (!data || !data.problems || data.problems.length === 0) {
+      throw AppError.badRequest('No problems found for this contest');
+    }
+
+    const contestDoc = {
+      platform: 'codeforces',
+      contestId: String(externalContestId),
+      name: data.contest.name,
+      type: data.contest.type || 'OTHER',
+      phase: data.contest.phase || 'FINISHED',
+      startTime: data.contest.startTime ? new Date(data.contest.startTime) : new Date(),
+      duration: data.contest.duration || 0,
+    };
+
+    const contest = await Contest.findOneAndUpdate(
+      { platform: 'codeforces', contestId: String(externalContestId) },
+      { $set: contestDoc },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const problemOps = data.problems.map(p => ({
+      updateOne: {
+        filter: { contestId: contest._id, problemId: String(p.index), platform: 'codeforces' },
+        update: {
+          $set: {
+            contestId: contest._id,
+            problemId: String(p.index),
+            name: p.name || 'Unknown',
+            index: String(p.index),
+            platform: 'codeforces',
+            difficulty: p.rating ? String(p.rating) : '',
+            url: `https://codeforces.com/contest/${externalContestId}/problem/${p.index}`,
+          }
+        },
+        upsert: true
+      }
+    }));
+
+    if (problemOps.length > 0) {
+      await Problem.bulkWrite(problemOps, { ordered: false });
+    }
+
+    let userSubmissions = [];
+    try {
+      userSubmissions = await codeforcesService.getUserContestSubmissions(externalContestId, handle);
+    } catch (err) {
+      logger.warn(`Failed to fetch contest submissions for user ${handle}: ${err.message}`);
+    }
+
+    const solvedProblems = new Map();
+    userSubmissions.forEach(sub => {
+      if (sub.verdict === 'OK' && sub.problem?.index) {
+        const isDuringContest = ['CONTESTANT', 'OUT_OF_COMPETITION', 'VIRTUAL'].includes(sub.participantType);
+        const current = solvedProblems.get(sub.problem.index);
+        if (!current || !current.solvedDuringContest) {
+          solvedProblems.set(sub.problem.index, {
+            solvedDuringContest: isDuringContest,
+            timestamp: sub.timestamp,
+          });
+        }
+      }
+    });
+
+    const submissionOps = data.problems.map(p => {
+      const solvedData = solvedProblems.get(String(p.index));
+      const updateDoc = {
+        $setOnInsert: {
+          userId: user._id,
+          contestId: contest._id,
+          problemId: String(p.index),
+        }
+      };
+
+      if (solvedData) {
+        updateDoc.$set = {
+          status: 'solved',
+          solvedDuringContest: solvedData.solvedDuringContest,
+          solvedAt: new Date(solvedData.timestamp),
+        };
+      } else {
+        updateDoc.$setOnInsert.status = 'unsolved';
+        updateDoc.$setOnInsert.solvedDuringContest = false;
+      }
+
+      return {
+        updateOne: {
+          filter: { userId: user._id, contestId: contest._id, problemId: String(p.index) },
+          update: updateDoc,
+          upsert: true
+        }
+      };
+    });
+
+    if (submissionOps.length > 0) {
+      await Submission.bulkWrite(submissionOps, { ordered: false });
+    }
+
+    return { success: true, problemsAdded: problemOps.length };
   }
 }
 

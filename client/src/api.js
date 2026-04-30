@@ -83,6 +83,7 @@ export const upsolveAPI = {
     api.put(`/upsolve/${contestId}/${problemId}`, data),
   getStats: () => api.get('/upsolve/stats'),
   getContests: () => api.get('/upsolve/contests'),
+  syncContest: (contestId) => api.post(`/upsolve/sync/${contestId}`),
 };
 
 export default api;

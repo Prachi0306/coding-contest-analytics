@@ -142,28 +142,60 @@ class CodeforcesService {
   }
 
 
-  async getContestStandings(contestId, handle) {
-    const params = { contestId, from: 1, count: 5 };
-    if (handle) {
-      params.handles = handle;
-      params.showUnofficial = true;
+  async getContestDetailsAndProblems(contestId) {
+    const contests = await this.getContestList();
+    const contest = contests.find(c => String(c.contestId) === String(contestId));
+
+    if (!contest) {
+      throw AppError.notFound(`Contest ${contestId} not found in Codeforces list`);
     }
 
-    const result = await this._request('/contest.standings', params);
+    const result = await this._request('/problemset.problems');
+    const problems = result.problems.filter(p => String(p.contestId) === String(contestId));
+
+    if (!problems || problems.length === 0) {
+      throw AppError.badRequest('No problems found for this contest');
+    }
 
     return {
-      contest: this._normalizeContest(result.contest),
-      rows: result.rows.map((row) => ({
-        rank: row.rank,
-        handle: row.party?.members?.[0]?.handle || 'unknown',
-        points: row.points,
-        penalty: row.penalty,
-        successfulHackCount: row.successfulHackCount,
-        unsuccessfulHackCount: row.unsuccessfulHackCount,
-      })),
+      contest,
+      problems: problems.map(p => ({
+        contestId: p.contestId || contestId,
+        index: p.index,
+        name: p.name,
+        rating: p.rating || null,
+        tags: p.tags || [],
+      }))
     };
   }
 
+
+  async getUserContestSubmissions(contestId, handle) {
+    if (!handle || typeof handle !== 'string') {
+      throw AppError.badRequest('A valid Codeforces handle is required');
+    }
+
+    const result = await this._request('/contest.status', {
+      contestId,
+      handle: handle.trim(),
+    });
+
+    return result.map((sub) => ({
+      submissionId: sub.id,
+      contestId: sub.contestId,
+      problem: {
+        contestId: sub.problem?.contestId,
+        index: sub.problem?.index,
+        name: sub.problem?.name,
+        rating: sub.problem?.rating || null,
+        tags: sub.problem?.tags || [],
+      },
+      verdict: sub.verdict,
+      language: sub.programmingLanguage,
+      participantType: sub.author?.participantType || 'PRACTICE',
+      timestamp: new Date(sub.creationTimeSeconds * 1000).toISOString(),
+    }));
+  }
 
   async getUserSubmissions(handle, count = 100) {
     if (!handle || typeof handle !== 'string') {
@@ -188,6 +220,7 @@ class CodeforcesService {
       },
       verdict: sub.verdict,
       language: sub.programmingLanguage,
+      participantType: sub.author?.participantType || 'PRACTICE',
       timestamp: new Date(sub.creationTimeSeconds * 1000).toISOString(),
     }));
   }

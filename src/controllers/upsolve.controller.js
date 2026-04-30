@@ -37,9 +37,16 @@ const getContestsWithProblems = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, 'Contests with problems retrieved', { contests });
 });
 
+const syncContestProblems = asyncHandler(async (req, res) => {
+  const { contestId } = req.params;
+  const result = await upsolvingService.syncContestProblems(req.user.id, 'codeforces', contestId);
+  return sendSuccess(res, 200, 'Contest problems synced successfully', result);
+});
+
 module.exports = {
   getUpsolveList,
   updateSolveStatus,
   getUpsolveStats,
   getContestsWithProblems,
+  syncContestProblems,
 };

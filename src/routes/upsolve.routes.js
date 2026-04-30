@@ -32,6 +32,16 @@ router.get('/stats', upsolveController.getUpsolveStats);
 
 router.get('/contests', upsolveController.getContestsWithProblems);
 
+const externalContestIdParamsSchema = Joi.object({
+  contestId: Joi.string().required().label('contestId'),
+});
+
+router.post(
+  '/sync/:contestId',
+  validateMultiple({ params: externalContestIdParamsSchema }),
+  upsolveController.syncContestProblems
+);
+
 
 router.get(
   '/:contestId',
