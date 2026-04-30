@@ -33,20 +33,33 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
             now,
           ],
         },
+        phase: { $nin: ['FINISHED'] }
       },
     ],
   };
 
   const upcomingQuery = {
     platform: platformLower,
-    $or: [
-      { phase: 'BEFORE' },
-      { startTime: { $gt: now } },
-    ],
+    startTime: { $gt: now },
     phase: { $nin: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST', 'FINISHED'] },
   };
 
-  const pastQuery = { platform: platformLower, phase: 'FINISHED' };
+  const pastQuery = {
+    platform: platformLower,
+    $or: [
+      { phase: 'FINISHED' },
+      {
+        startTime: { $lte: now },
+        $expr: {
+          $lte: [
+            { $add: ['$startTime', { $multiply: ['$duration', 1000] }] },
+            now,
+          ],
+        },
+        phase: { $nin: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST'] },
+      },
+    ],
+  };
   if (search) {
     pastQuery.$text = { $search: search };
   }
