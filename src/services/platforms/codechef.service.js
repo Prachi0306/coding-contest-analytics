@@ -139,7 +139,7 @@ async function fetchProfile(handle) {
     let currentRating = null;
     let highestRating = null;
 
-    const ratingMatch = rawHtml.match(/class=["']rating-number["'][^>]*>(\d+)/i);
+    const ratingMatch = rawHtml.match(/class=["']rating-number["'][^>]*>(\d+)/i) || rawHtml.match(/class=["']rating["'][^>]*>(\d{3,})/i);
     if (ratingMatch) currentRating = parseInt(ratingMatch[1], 10);
     
     const maxRatingMatch = rawHtml.match(/Highest Rating\s*(\d+)/i);
