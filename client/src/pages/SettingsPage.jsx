@@ -100,7 +100,6 @@ export default function SettingsPage() {
     <div className="page">
       <div className="container" style={{ maxWidth: '720px', margin: '0 auto', padding: '0 24px' }}>
 
-        {/* Page Header */}
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{
             fontFamily: "'Outfit', sans-serif",
@@ -119,7 +118,6 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* User Info Card */}
         <div className="card" style={{ padding: '24px 28px', marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{
@@ -173,7 +171,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Platform Handles Card */}
         <div className="card" style={{ padding: '28px 28px 24px' }}>
           <div style={{
             display: 'flex',
@@ -215,7 +212,6 @@ export default function SettingsPage() {
           {success && <div className="alert alert--success">{success}</div>}
 
           {!editMode ? (
-            /* ─── View Mode ─── */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {PLATFORMS.map((p) => {
                 const handle = original[p.key];
@@ -315,7 +311,6 @@ export default function SettingsPage() {
               )}
             </div>
           ) : (
-            /* ─── Edit Mode ─── */
             <form onSubmit={handleSave}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {PLATFORMS.map((p) => (
@@ -405,7 +400,6 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Quick Tips Card */}
         <div className="card" style={{ padding: '20px 24px', marginTop: '24px' }}>
           <h3 style={{
             fontFamily: "'Outfit', sans-serif",

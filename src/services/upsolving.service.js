@@ -183,8 +183,7 @@ class UpsolvingService {
     const handle = user.platformHandles?.codeforces || user.handles?.codeforces;
     if (!handle) throw AppError.badRequest('No Codeforces handle configured');
 
-    // The user requested to track ONE contest at a time.
-    // Clear any previous Codeforces submissions before syncing this one.
+
     const codeforcesContests = await Contest.find({ platform: 'codeforces' }).select('_id');
     const cfContestIds = codeforcesContests.map(c => c._id);
     await Submission.deleteMany({ userId: user._id, contestId: { $in: cfContestIds } });
