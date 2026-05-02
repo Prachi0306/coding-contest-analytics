@@ -109,6 +109,9 @@ export default function ConnectPlatformsPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.5 }}>
               Link your competitive programming profiles to track your stats in one place.
             </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '8px', fontStyle: 'italic' }}>
+              You can always update or add handles later from the Settings page.
+            </p>
           </div>
 
           {error && <div className="alert alert--error">{error}</div>}

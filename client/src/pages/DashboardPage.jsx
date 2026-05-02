@@ -180,7 +180,10 @@ export default function DashboardPage() {
           <div className="empty-state">
             <div className="empty-state__icon">📊</div>
             <h2 className="empty-state__title">No stats available</h2>
-            <p>Connect platforms via the settings or profile page to start tracking your competitive programming stats.</p>
+            <p>Connect your competitive programming platforms to start tracking your stats.</p>
+            <a href="/settings" className="btn btn--primary" style={{ marginTop: '16px', textDecoration: 'none' }}>
+              ⚙️ Go to Settings
+            </a>
           </div>
         ) : (
           <>

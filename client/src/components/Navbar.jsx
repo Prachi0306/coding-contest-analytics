@@ -10,13 +10,6 @@ export default function Navbar() {
 
   const isActive = (path) => location.pathname === path ? 'nav-link active' : 'nav-link';
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      logout();
-      navigate('/login');
-    }
-  };
-
   return (
     <nav className="navbar">
       <div className="navbar-inner">
@@ -43,9 +36,9 @@ export default function Navbar() {
               <Link to="/dashboard" className={isActive('/dashboard')}>
                 Dashboard
               </Link>
-              <button onClick={handleLogout} className="nav-btn nav-btn--ghost">
-                Logout
-              </button>
+              <Link to="/settings" className={isActive('/settings')}>
+                Settings
+              </Link>
             </>
           ) : (
             <>

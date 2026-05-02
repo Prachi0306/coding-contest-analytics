@@ -140,29 +140,31 @@ export default function LoginPage() {
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: '12px',
             marginTop: '32px',
-            maxWidth: '300px',
+            maxWidth: '320px',
             margin: '32px auto 0',
           }}>
             {[
-              { value: '11,450', label: 'Active Users', color: '#a78bfa' },
-              { value: '6,990', label: 'Contests Tracked', color: '#f0a030' },
-              { value: '3.2M', label: 'Submissions', color: '#34d399' },
-              { value: '150+', label: 'Countries', color: '#22d3ee' },
-            ].map((s, i) => (
+              { title: 'Analytics', desc: 'Track your ratings', icon: '📊', color: '#a78bfa' },
+              { title: 'Leaderboard', desc: 'Compete globally', icon: '🌍', color: '#f0a030' },
+              { title: 'Upsolving', desc: 'Improve your skills', icon: '📝', color: '#34d399' },
+              { title: 'Auto Sync', desc: 'Real-time updates', icon: '🔄', color: '#22d3ee' },
+            ].map((f, i) => (
               <div key={i} style={{
                 background: 'rgba(15, 20, 45, 0.6)',
-                border: '1px solid rgba(124,92,252,0.12)',
+                border: `1px solid ${f.color}33`,
                 borderRadius: '12px',
-                padding: '14px',
+                padding: '16px 12px',
                 textAlign: 'center',
               }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{f.icon}</div>
                 <div style={{
                   fontFamily: "'Outfit', sans-serif",
-                  fontSize: '1.3rem',
-                  fontWeight: 800,
-                  color: s.color,
-                }}>{s.value}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  color: f.color,
+                  marginBottom: '4px',
+                }}>{f.title}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{f.desc}</div>
               </div>
             ))}
           </div>

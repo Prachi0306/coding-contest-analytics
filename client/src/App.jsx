@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import ContestsPage from './pages/ContestsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ConnectPlatformsPage from './pages/ConnectPlatformsPage';
+import SettingsPage from './pages/SettingsPage';
 
 import SchedulePage from './pages/SchedulePage';
 import UpsolvePage from './pages/UpsolvePage';
@@ -67,6 +68,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <UpsolvePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />
