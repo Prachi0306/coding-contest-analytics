@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { statsAPI } from '../api';
+import CustomDropdown from '../components/CustomDropdown';
 
 const PLATFORM_CONFIG = {
   codeforces: { label: 'Codeforces', color: '#a78bfa', icon: '🟣' },
@@ -60,26 +61,17 @@ export default function LeaderboardPage() {
               fontSize: '0.82rem',
               color: 'var(--text-muted)',
             }}>
-              <span>Filter</span>
-              <select 
-                value={sortBy} 
-                onChange={(e) => setSortBy(e.target.value)}
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  padding: '6px 10px',
-                  fontSize: '0.82rem',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
-              >
-                <option value="rating">Rating</option>
-                <option value="max">Max Rating</option>
-                <option value="contests">Contests</option>
-              </select>
+              <span>Sort by:</span>
+              <CustomDropdown
+                value={sortBy}
+                onChange={(val) => setSortBy(val)}
+                options={[
+                  { value: 'rating', label: 'Rating' },
+                  { value: 'max', label: 'Max Rating' },
+                  { value: 'contests', label: 'Contests' },
+                ]}
+                minWidth="120px"
+              />
             </div>
           </div>
         </div>

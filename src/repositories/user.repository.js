@@ -60,6 +60,40 @@ class UserRepository {
   }
 
 
+  async updateUsername(id, username) {
+    return User.findByIdAndUpdate(
+      id,
+      { $set: { username: username.trim() } },
+      { new: true, runValidators: true }
+    );
+  }
+
+
+  async updateAvatar(id, avatar) {
+    return User.findByIdAndUpdate(
+      id,
+      { $set: { avatar: avatar.trim() } },
+      { new: true, runValidators: true }
+    );
+  }
+
+
+  async updateProfile(id, updateData) {
+    const allowed = ['username', 'avatar'];
+    const update = {};
+    for (const key of allowed) {
+      if (updateData[key] !== undefined) {
+        update[key] = updateData[key];
+      }
+    }
+    return User.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true, runValidators: true }
+    );
+  }
+
+
   async updateHandles(id, handles) {
     const update = {};
     if (handles.codeforces !== undefined) update['handles.codeforces'] = handles.codeforces;

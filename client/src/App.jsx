@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import DashboardPage from './pages/DashboardPage';
 import ContestsPage from './pages/ContestsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/contests" element={<ContestsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route

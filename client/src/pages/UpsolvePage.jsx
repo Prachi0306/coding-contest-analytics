@@ -1,19 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
-import { upsolveAPI, statsAPI, contestAPI } from '../api';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { upsolveAPI, contestAPI } from '../api';
+import CustomDropdown from '../components/CustomDropdown';
 
-const PLATFORM_CONFIG = {
-  codeforces: { label: 'Codeforces', color: '#a78bfa', icon: '🟣' },
-  leetcode: { label: 'LeetCode', color: '#f0a030', icon: '🟡' },
-  codechef: { label: 'CodeChef', color: '#22d3ee', icon: '🔵' },
-};
+const PLATFORMS = [
+  { key: 'codeforces', label: 'Codeforces', icon: '🟣', color: '#a78bfa' },
+  { key: 'leetcode', label: 'LeetCode', icon: '🟡', color: '#f0a030' },
+  { key: 'codechef', label: 'CodeChef', icon: '🔵', color: '#22d3ee' },
+];
 
-function formatDateTime(dateStr) {
-  if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
+const UPSOLVE_PLATFORMS = [
+  { key: 'codeforces', label: 'Codeforces', icon: '🟣', color: '#a78bfa' },
+  { key: 'leetcode', label: 'LeetCode', icon: '🟡', color: '#f0a030' },
+  { key: 'codechef', label: 'CodeChef', icon: '🔵', color: '#22d3ee' },
+];
 
 export default function UpsolvePage() {
   const [contests, setContests] = useState([]);
@@ -22,73 +21,64 @@ export default function UpsolvePage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingProblems, setLoadingProblems] = useState(false);
-  
-  const [pastContests, setPastContests] = useState([]);
+
+  // Platform & Contest Selection
+  const [selectedPlatform, setSelectedPlatform] = useState('codeforces');
+  const [platformContests, setPlatformContests] = useState([]);
+  const [loadingPlatformContests, setLoadingPlatformContests] = useState(false);
   const [selectedContestToSync, setSelectedContestToSync] = useState('');
   const [syncingContest, setSyncingContest] = useState(false);
-
   const [searchQuery, setSearchQuery] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [syncError, setSyncError] = useState('');
 
-  const displayResults = pastContests.filter(c => 
-    !searchQuery || 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.contestId.toString().includes(searchQuery)
-  );
-
-  const handleSelectFromSearch = async (contest) => {
-    setSelectedContestToSync(contest.contestId);
-    setSearchQuery(contest.name);
-    setShowDropdown(false);
-
-    setSyncingContest(true);
+  // Fetch available contests for the selected platform
+  const fetchContestsForPlatform = useCallback(async (plat) => {
+    setLoadingPlatformContests(true);
     try {
-      await upsolveAPI.syncContest(contest.contestId);
-      const [contestsRes, statsRes] = await Promise.all([
-        upsolveAPI.getContests(),
-        upsolveAPI.getStats(),
-      ]);
-      const newContests = contestsRes.data?.contests || [];
-      setContests(newContests);
-      setStats(statsRes.data || null);
-      
-      const syncedContest = newContests.find(c => String(c.contestId) === String(contest.contestId));
-      if (syncedContest) {
-        handleSelectContest(syncedContest._id);
-      }
-      
-      setSelectedContestToSync('');
-      setSearchQuery('');
+      const res = await contestAPI.getContests({ platform: plat, limit: 500 });
+      let list = res.data?.contests || [];
+      const now = new Date();
+      list = list.filter(c => {
+         const endTime = new Date(new Date(c.startTime).getTime() + (c.duration * 1000));
+         return endTime < now;
+      });
+      setPlatformContests(list);
     } catch (err) {
-      console.error('Failed to sync contest:', err);
-      alert(err.message || 'Failed to sync contest problems');
+      console.error(`Failed to fetch ${plat} contests:`, err);
+      setPlatformContests([]);
     } finally {
-      setSyncingContest(false);
+      setLoadingPlatformContests(false);
     }
+  }, []);
+
+  // When platform changes, reset contest selection and load platform contests
+  const handlePlatformChange = (newPlatform) => {
+    setSelectedPlatform(newPlatform);
+    setSelectedContestToSync('');
+    setSearchQuery('');
+    setSyncError('');
+    fetchContestsForPlatform(newPlatform);
   };
+
+  useEffect(() => {
+    fetchContestsForPlatform('codeforces');
+  }, [fetchContestsForPlatform]);
 
   useEffect(() => {
     const fetchInitial = async () => {
       setLoading(true);
       try {
-        const [contestsRes, statsRes, historyRes] = await Promise.all([
+        const [contestsRes, statsRes] = await Promise.all([
           upsolveAPI.getContests(),
           upsolveAPI.getStats(),
-          statsAPI.getContestHistory({ platform: 'codeforces', limit: 500 }),
         ]);
         const fetchedContests = contestsRes.data?.contests || [];
         setContests(fetchedContests);
         setStats(statsRes.data || null);
-        
+
         if (fetchedContests.length > 0) {
           handleSelectContest(fetchedContests[0]._id);
         }
-        
-        const history = (historyRes.data?.history || []).map(c => ({
-          contestId: c.contestId,
-          name: c.contestName || `Contest ${c.contestId}`
-        }));
-        setPastContests(history);
       } catch (err) {
         console.error('Failed to fetch upsolve data:', err);
       } finally {
@@ -101,26 +91,38 @@ export default function UpsolvePage() {
   const handleSyncContest = async () => {
     if (!selectedContestToSync) return;
     setSyncingContest(true);
+    setSyncError('');
     try {
-      await upsolveAPI.syncContest(selectedContestToSync);
+      const syncRes = await upsolveAPI.syncContest(selectedContestToSync, selectedPlatform);
+      const syncedContestId = syncRes.data?.contestId;
+      const syncedContestDoc = syncRes.data?.contest;
+
       const [contestsRes, statsRes] = await Promise.all([
         upsolveAPI.getContests(),
         upsolveAPI.getStats(),
       ]);
-      const newContests = contestsRes.data?.contests || [];
+      let newContests = contestsRes.data?.contests || [];
+      
+      // If the contest isn't in newContests (e.g. because user didn't participate / 0 submissions)
+      // we prepend the returned contest doc so it shows up in the tabs
+      if (syncedContestDoc && !newContests.some(c => String(c._id) === String(syncedContestId))) {
+        newContests = [syncedContestDoc, ...newContests];
+      }
+
       setContests(newContests);
       setStats(statsRes.data || null);
-      
-      const syncedContest = newContests.find(c => String(c.contestId) === String(selectedContestToSync));
-      if (syncedContest) {
-        handleSelectContest(syncedContest._id);
+
+      if (syncedContestId) {
+        handleSelectContest(syncedContestId);
+      } else if (newContests.length > 0) {
+        handleSelectContest(newContests[0]._id);
       }
-      
+
       setSelectedContestToSync('');
       setSearchQuery('');
     } catch (err) {
       console.error('Failed to sync contest:', err);
-      alert(err.message || 'Failed to sync contest problems');
+      setSyncError(err.message || 'Failed to sync contest problems');
     } finally {
       setSyncingContest(false);
     }
@@ -154,6 +156,22 @@ export default function UpsolvePage() {
       console.error('Failed to update status:', err);
     }
   };
+
+  const filteredContests = useMemo(() => {
+    const list = platformContests.filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        c.name?.toLowerCase().includes(q) ||
+        c.contestId?.toString().toLowerCase().includes(q)
+      );
+    });
+    return list.map(c => ({
+      value: c.contestId,
+      label: `${c.name} (#${c.contestId})`,
+      badge: c.type
+    }));
+  }, [platformContests, searchQuery]);
 
   return (
     <div className="page">
@@ -208,52 +226,121 @@ export default function UpsolvePage() {
               </div>
             )}
 
-            <div className="card" style={{ marginBottom: 'var(--space-xl)', overflow: 'visible', zIndex: 50 }}>
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                <h2 className="card-title">Select a Contest</h2>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Search Codeforces contests..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          setShowDropdown(true);
-                          if (!e.target.value) setSelectedContestToSync('');
-                        }}
-                        onFocus={() => setShowDropdown(true)}
-                        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                        style={{ padding: '0.4rem 2rem 0.4rem 0.8rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', width: '300px' }}
-                      />
-                      <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>▼</span>
-                      {showDropdown && displayResults.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--bg-card, #1e1e2e)', border: '1px solid var(--border-color)', zIndex: 100, maxHeight: '250px', overflowY: 'auto', borderRadius: '4px', marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                          {displayResults.map(c => (
-                            <div 
-                              key={c.contestId} 
-                              style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', color: 'var(--text-primary)', backgroundColor: 'var(--bg-card, #1e1e2e)' }}
-                              onMouseDown={() => handleSelectFromSearch(c)}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-secondary, #2a2a3e)'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = 'var(--bg-card, #1e1e2e)'}
-                            >
-                              {c.name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      className="btn btn--primary btn--sm"
-                      onClick={handleSyncContest}
-                      disabled={!selectedContestToSync || syncingContest}
-                    >
-                      {syncingContest ? 'Syncing...' : 'Sync'}
-                    </button>
-                  </div>
+            {/* Platform + Contest Selection Card */}
+            <div
+              className="card card--dropdown-container"
+              style={{
+                marginBottom: 'var(--space-xl)',
+                padding: '20px 24px',
+                position: 'relative',
+                zIndex: 30,
+              }}
+            >
+              <div className="upsolve-track-header">
+                <div>
+                  <h2
+                    style={{
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    Analyze a Past Contest
+                  </h2>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    Select a past contest to see your contest performance and upsolve progress.
+                  </p>
+                </div>
+
+                <div className="upsolve-controls-row">
+                  {/* Platform Selector */}
+                  <CustomDropdown
+                    id="upsolve-platform-select"
+                    value={selectedPlatform}
+                    onChange={handlePlatformChange}
+                    options={UPSOLVE_PLATFORMS.map((p) => ({
+                      value: p.key,
+                      label: p.label,
+                      icon: p.icon,
+                    }))}
+                    minWidth="160px"
+                  />
+
+                  {/* Contest Search/Filter */}
+                  <input
+                    type="text"
+                    placeholder="Filter contests..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="upsolve-filter-input"
+                  />
+
+                  {/* Contest Dropdown */}
+                  <CustomDropdown
+                    id="upsolve-contest-select"
+                    value={selectedContestToSync}
+                    onChange={(val) => setSelectedContestToSync(val)}
+                    disabled={!selectedPlatform || loadingPlatformContests || filteredContests.length === 0}
+                    placeholder={
+                      !selectedPlatform
+                        ? 'Select a platform first'
+                        : loadingPlatformContests
+                        ? 'Loading contests...'
+                        : filteredContests.length === 0
+                        ? `No ${PLATFORMS.find((p) => p.key === selectedPlatform)?.label || selectedPlatform} contests found`
+                        : `Select ${PLATFORMS.find((p) => p.key === selectedPlatform)?.label || selectedPlatform} contest...`
+                    }
+                    options={filteredContests}
+                    minWidth="250px"
+                    maxWidth="400px"
+                  />
+
+                  {/* Sync Button */}
+                  <button
+                    className="btn btn--primary btn--sm upsolve-sync-btn"
+                    onClick={handleSyncContest}
+                    disabled={!selectedContestToSync || syncingContest}
+                  >
+                    {syncingContest ? '⏳ Syncing...' : '🔄 Sync'}
+                  </button>
+                </div>
               </div>
+
+              {syncError && (
+                <div className="alert alert--error" style={{ marginTop: '12px', fontSize: '0.82rem' }}>
+                  {syncError}
+                </div>
+              )}
             </div>
+
+            {/* Tracked Contests Selector / Tabs */}
+            {contests.length > 0 && (
+              <div style={{ marginBottom: 'var(--space-lg)', display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                {contests.map((c) => {
+                  const isSelected = selectedContest === c._id;
+                  const platCfg = PLATFORMS.find((p) => p.key === c.platform) || PLATFORMS[0];
+                  return (
+                    <button
+                      key={c._id}
+                      onClick={() => handleSelectContest(c._id)}
+                      className={`btn btn--sm ${isSelected ? 'btn--primary' : 'btn--outline'}`}
+                      style={{
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        borderColor: isSelected ? undefined : 'var(--border-color)',
+                      }}
+                    >
+                      <span>{platCfg.icon}</span>
+                      <span>{c.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {loadingProblems ? (
               <div className="loading-page">
@@ -264,66 +351,114 @@ export default function UpsolvePage() {
               <div className="upsolve-results">
                 <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
                   <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                    {upsolveData.contest.name}
+                    {upsolveData.contest?.name}
                   </h3>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    <span>📊 {upsolveData.totalProblems} total problems</span>
-                    <span style={{ color: 'var(--accent-green)' }}>
-                      ✅ {upsolveData.solvedDuringContest.length} solved during contest
-                    </span>
-                    <span style={{ color: 'var(--accent-cyan)' }}>
-                      🔄 {upsolveData.upsolvedAfter.length} upsolved
-                    </span>
-                    <span style={{ color: 'var(--accent-red)' }}>
-                      ❌ {upsolveData.unsolved.length} unsolved
-                    </span>
-                  </div>
+                  {upsolveData.participated !== false ? (
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      <span>📊 {upsolveData.totalProblems} total problems</span>
+                      <span style={{ color: 'var(--accent-green)' }}>
+                        ✅ {upsolveData.solvedDuringContest?.length || 0} solved during contest
+                      </span>
+                      <span style={{ color: 'var(--accent-cyan)' }}>
+                        🔄 {upsolveData.upsolvedAfter?.length || 0} upsolved
+                      </span>
+                      <span style={{ color: 'var(--accent-red)' }}>
+                        ❌ {upsolveData.unsolved?.length || 0} unsolved
+                      </span>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        ⚪ {upsolveData.unattempted?.length || 0} unattempted
+                      </span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        📝 {(upsolveData.totalProblems || 0) - (upsolveData.unattempted?.length || 0)} attempted
+                      </span>
+                      <span style={{ color: 'var(--text-primary)', opacity: 0.8 }}>
+                        (Total Attempts: {upsolveData.totalAttempts || 0})
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Codeforces
+                    </div>
+                  )}
                 </div>
 
-                {upsolveData.solvedDuringContest.length > 0 && (
-                  <ProblemSection
-                    title="Solved During Contest"
-                    icon="✅"
-                    iconClass="upsolve-section-icon--green"
-                    problems={upsolveData.solvedDuringContest}
-                    statusLabel="Solved"
-                    statusClass="badge--positive"
-                    onToggle={null}
-                  />
-                )}
 
-                {upsolveData.upsolvedAfter.length > 0 && (
-                  <ProblemSection
-                    title="Upsolved After Contest"
-                    icon="🔄"
-                    iconClass="upsolve-section-icon--cyan"
-                    problems={upsolveData.upsolvedAfter}
-                    statusLabel="Upsolved"
-                    statusClass="badge--info"
-                    onToggle={(p) => handleToggleStatus(p.problemId, 'solved')}
-                    toggleLabel="Mark Unsolved"
-                  />
-                )}
-
-                {upsolveData.unsolved.length > 0 && (
-                  <ProblemSection
-                    title="Unsolved Problems"
-                    icon="❌"
-                    iconClass="upsolve-section-icon--red"
-                    problems={upsolveData.unsolved}
-                    statusLabel="Unsolved"
-                    statusClass="badge--negative"
-                    onToggle={(p) => handleToggleStatus(p.problemId, 'unsolved')}
-                    toggleLabel="Mark Solved"
-                  />
-                )}
-
-                {upsolveData.totalProblems === 0 && (
+                {(!upsolveData.available) ? (
                   <div className="empty-state">
-                    <div className="empty-state__icon">📋</div>
-                    <h2 className="empty-state__title">No problems registered</h2>
-                    <p>This contest doesn't have any problems added yet.</p>
+                    <div className="empty-state__icon">⚠️</div>
+                    <h2 className="empty-state__title">Data Unavailable</h2>
+                    <p>{upsolveData.reason || 'This platform does not expose required contest data.'}</p>
                   </div>
+                ) : upsolveData.participated === false ? (
+                  <div className="empty-state">
+                    <div className="empty-state__icon">🚫</div>
+                    <h2 className="empty-state__title" style={{ fontSize: '1.2rem' }}>You didn't participate in this contest.</h2>
+                    <p style={{ marginBottom: '16px' }}>No contest submissions were found for your account during this contest.</p>
+                    <a href={`https://codeforces.com/contest/${upsolveData.contest?.contestId}`} target="_blank" rel="noopener noreferrer" className="btn btn--outline btn--sm">
+                      View Contest
+                    </a>
+                  </div>
+                ) : (
+                  <>
+                    {upsolveData.solvedDuringContest?.length > 0 && (
+                      <ProblemSection
+                        title="Solved During Contest"
+                        icon="✅"
+                        iconClass="upsolve-section-icon--green"
+                        problems={upsolveData.solvedDuringContest}
+                        statusLabel="Solved"
+                        statusClass="badge--positive"
+                        onToggle={null}
+                      />
+                    )}
+
+                    {upsolveData.upsolvedAfter?.length > 0 && (
+                      <ProblemSection
+                        title="Upsolved After Contest"
+                        icon="🔄"
+                        iconClass="upsolve-section-icon--cyan"
+                        problems={upsolveData.upsolvedAfter}
+                        statusLabel="Upsolved"
+                        statusClass="badge--info"
+                        onToggle={(p) => handleToggleStatus(p.problemId, 'solved')}
+                        toggleLabel="Mark Unsolved"
+                      />
+                    )}
+
+                    {upsolveData.unsolved?.length > 0 && (
+                      <ProblemSection
+                        title="Attempted & Unsolved"
+                        icon="❌"
+                        iconClass="upsolve-section-icon--red"
+                        problems={upsolveData.unsolved}
+                        statusLabel="Unsolved"
+                        statusClass="badge--negative"
+                        onToggle={(p) => handleToggleStatus(p.problemId, 'unsolved')}
+                        toggleLabel="Mark Solved"
+                      />
+                    )}
+
+                    {upsolveData.unattempted?.length > 0 && (
+                      <ProblemSection
+                        title="Unattempted Problems"
+                        icon="⚪"
+                        iconClass="upsolve-section-icon--gray"
+                        problems={upsolveData.unattempted}
+                        statusLabel="Unattempted"
+                        statusClass="badge--secondary"
+                        onToggle={(p) => handleToggleStatus(p.problemId, 'unsolved')}
+                        toggleLabel="Mark Solved"
+                      />
+                    )}
+
+                    {upsolveData.totalProblems === 0 && (
+                      <div className="empty-state">
+                        <div className="empty-state__icon">📋</div>
+                        <h2 className="empty-state__title">No problems registered</h2>
+                        <p>This contest doesn't have any problems added yet.</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : selectedContest ? (
@@ -358,6 +493,11 @@ function ProblemSection({ title, icon, iconClass, problems, statusLabel, statusC
               {problem.difficulty && (
                 <span className="badge badge--info" style={{ fontSize: '0.65rem' }}>
                   {problem.difficulty}
+                </span>
+              )}
+              {problem.attempts > 0 && (
+                <span className="badge badge--secondary" style={{ fontSize: '0.65rem' }}>
+                  {problem.attempts} {problem.attempts === 1 ? 'Attempt' : 'Attempts'}
                 </span>
               )}
             </div>

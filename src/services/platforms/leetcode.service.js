@@ -244,4 +244,65 @@ async function fetchProfile(handle) {
   }
 }
 
-module.exports = { fetchProfile, PLATFORM };
+const CONTEST_DETAILS_QUERY = `
+  query getContestDetails($titleSlug: String!) {
+    contest(titleSlug: $titleSlug) {
+      title
+      startTime
+      duration
+      questions {
+        titleSlug
+        title
+      }
+    }
+  }
+`;
+
+async function getContestDetailsAndProblems(contestId) {
+  try {
+    const data = await _graphqlRequest(CONTEST_DETAILS_QUERY, { titleSlug: contestId });
+    const contestData = data?.data?.contest;
+
+    if (!contestData) {
+      throw new Error(`LeetCode contest "${contestId}" not found`);
+    }
+
+    const contest = {
+      platform: PLATFORM,
+      contestId: contestId,
+      name: contestData.title,
+      startTime: contestData.startTime ? new Date(contestData.startTime * 1000).toISOString() : new Date().toISOString(),
+      duration: contestData.duration || 0,
+    };
+
+    const problems = [];
+    if (contestData.questions && Array.isArray(contestData.questions)) {
+      contestData.questions.forEach((q, idx) => {
+        problems.push({
+          contestId: contestId,
+          index: `Q${idx + 1}`,
+          name: q.title || q.titleSlug,
+          rating: null,
+          tags: [],
+        });
+      });
+    }
+
+    if (problems.length === 0) {
+      throw new Error('No problems found for this LeetCode contest');
+    }
+
+    return { contest, problems };
+  } catch (error) {
+    logger.error(`LeetCode getContestDetailsAndProblems error for ${contestId}`, { error: error.message });
+    throw error;
+  }
+}
+
+async function getUserContestSubmissions(contestId, handle) {
+  // LeetCode's GraphQL does not expose a user's submissions for a specific past contest.
+  // The REST API for contest rankings requires pagination through thousands of users and is protected by Cloudflare.
+  throw new Error('LeetCode does not expose a public API to fetch a user\'s submission history for a specific past contest.');
+}
+
+module.exports = { fetchProfile, getContestDetailsAndProblems, getUserContestSubmissions, PLATFORM };

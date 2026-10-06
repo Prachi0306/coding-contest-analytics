@@ -39,7 +39,8 @@ const getContestsWithProblems = asyncHandler(async (req, res) => {
 
 const syncContestProblems = asyncHandler(async (req, res) => {
   const { contestId } = req.params;
-  const result = await upsolvingService.syncContestProblems(req.user.id, 'codeforces', contestId);
+  const platform = req.query.platform || req.body?.platform || 'codeforces';
+  const result = await upsolvingService.syncContestProblems(req.user.id, platform, contestId);
   return sendSuccess(res, 200, 'Contest problems synced successfully', result);
 });
 

@@ -128,8 +128,8 @@ const getJobStatus = async (userId, platform) => {
 
 const addContestSyncJob = async () => {
   if (!queues.syncContests) initQueues();
-  const job = await queues.syncContests.add('sync-codeforces-contests', {
-    platform: 'codeforces',
+  const job = await queues.syncContests.add('sync-all-contests', {
+    platform: 'all',
     triggeredAt: new Date().toISOString(),
   });
   logger.info(`Contest sync job added: ${job.id}`);
@@ -152,7 +152,7 @@ const scheduleRecurringJobs = async () => {
 
   await queues.syncContests.add(
     'scheduled-contest-sync',
-    { platform: 'codeforces', scheduled: true },
+    { platform: 'all', scheduled: true },
     {
       repeat: { pattern: '0 */6 * * *' },
       jobId: 'recurring-contest-sync',

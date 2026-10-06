@@ -31,8 +31,14 @@ transports.push(
   })
 );
 
-if (config.env !== 'test') {
+if (config.env !== 'test' && config.env !== 'production') {
+  const fs = require('fs');
   const logsDir = path.resolve(__dirname, '../../logs');
+
+  // Ensure logs directory exists
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
 
   transports.push(
     new winston.transports.File({

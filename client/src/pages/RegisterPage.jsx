@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
+import { authAPI } from '../api';
 
 export default function RegisterPage() {
   const register = useAuthStore(state => state.register);
@@ -13,6 +14,11 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,8 +31,15 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const user = await register(form);
+      const result = await register(form);
       
+      if (result.requiresVerification) {
+        setVerificationPending(true);
+        setVerificationEmail(result.email);
+        return;
+      }
+      
+      const user = result;
       const hasPlatformHandles = user.platformHandles && Object.values(user.platformHandles).some(h => h && h.trim());
       const hasLegacyHandles = user.handles && Object.values(user.handles).some(h => h && h.trim());
       
@@ -39,6 +52,18 @@ export default function RegisterPage() {
       setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+
+
+  const handleResend = async () => {
+    setError('');
+    try {
+      await authAPI.resendVerification({ email: verificationEmail });
+      alert('Verification email resent!');
+    } catch (err) {
+      setError(err.message || 'Failed to resend email');
     }
   };
 
@@ -64,8 +89,19 @@ export default function RegisterPage() {
           </div>
 
           {error && <div className="alert alert--error">{error}</div>}
-
-          <form onSubmit={handleSubmit}>
+          {verificationPending ? (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>✉️</div>
+              <h3>Check your email</h3>
+              <p style={{ marginBottom: '24px', color: 'var(--text-secondary)' }}>
+                We sent a verification link to <strong>{verificationEmail}</strong>. Please click the link to verify your account.
+              </p>
+              <p style={{ fontSize: '0.875rem' }}>
+                Didn't receive the email? <button type="button" onClick={handleResend} style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 600 }}>Resend Link</button>
+              </p>
+            </div>
+          ) : (
+          <form onSubmit={handleSubmit} autoComplete="off">
             <div className="form-group">
               <label className="form-label">Email Address</label>
               <input
@@ -76,6 +112,7 @@ export default function RegisterPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
+                autoComplete="off"
               />
             </div>
 
@@ -91,39 +128,74 @@ export default function RegisterPage() {
                 required
                 minLength={3}
                 maxLength={30}
-                pattern="^[a-zA-Z0-9_\\-]+$"
+                pattern="^[a-zA-Z0-9_\-]+$"
                 title="Username may only contain letters, numbers, underscores, and hyphens"
+                autoComplete="off"
               />
             </div>
 
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input
-                id="register-password"
-                type="password"
-                className="form-input"
-                placeholder="Min 8 characters"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                minLength={8}
-                maxLength={128}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  id="register-password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="Min 8 characters"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  style={{ paddingRight: '42px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="password-toggle-btn"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">Confirm Password</label>
-              <input
-                id="register-confirm-password"
-                type="password"
-                className="form-input"
-                placeholder="••••••••"
-                value={form.confirmPassword}
-                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                required
-                minLength={8}
-                maxLength={128}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  id="register-confirm-password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="••••••••"
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  style={{ paddingRight: '42px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="password-toggle-btn"
+                  tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
@@ -136,6 +208,8 @@ export default function RegisterPage() {
               {loading ? '⏳ Creating...' : '🚀 Create Account'}
             </button>
           </form>
+          )}
+
 
           <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             Already have an account?{' '}

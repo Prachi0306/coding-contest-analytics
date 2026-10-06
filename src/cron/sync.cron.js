@@ -24,8 +24,18 @@ const initCronJobs = () => {
 
   logger.info('═══════════════════════════════════════════════');
   logger.info('  ⏰ Cron jobs initialized');
-  logger.info('  📋 Contest Sync: Every 6 hours (UTC)');
+  logger.info('  📋 Contest Sync: Every 6 hours (UTC) + ON STARTUP');
   logger.info('═══════════════════════════════════════════════');
+
+  // Trigger initial sync on startup for fresh deployments
+  setTimeout(async () => {
+    logger.info('[CRON] Triggering initial startup contest sync...');
+    try {
+      await cronService.syncContests();
+    } catch (err) {
+      logger.error('[CRON] Initial sync failed', { error: err.message });
+    }
+  }, 2000);
 };
 
 

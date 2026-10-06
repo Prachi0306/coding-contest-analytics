@@ -150,8 +150,8 @@ class CodeforcesService {
       throw AppError.notFound(`Contest ${contestId} not found in Codeforces list`);
     }
 
-    const result = await this._request('/problemset.problems');
-    const problems = result.problems.filter(p => String(p.contestId) === String(contestId));
+    const result = await this._request(`/contest.standings`, { contestId });
+    const problems = result.problems;
 
     if (!problems || problems.length === 0) {
       throw AppError.badRequest('No problems found for this contest');

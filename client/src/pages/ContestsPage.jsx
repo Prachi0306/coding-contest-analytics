@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { contestAPI, scheduleAPI } from '../api';
 import useAuthStore from '../store/authStore';
 import CalendarButtons from '../components/CalendarButtons';
+import CustomDropdown from '../components/CustomDropdown';
 
 const PLATFORM_CONFIG = {
+  all: { label: 'All Platforms', color: '#888', icon: '🌐' },
   codeforces: { label: 'Codeforces', color: '#a78bfa', icon: '🟣' },
   leetcode: { label: 'LeetCode', color: '#f0a030', icon: '🟡' },
   codechef: { label: 'CodeChef', color: '#22d3ee', icon: '🔵' },
@@ -62,9 +64,9 @@ function getCountdown(startTime) {
 }
 
 
-function OngoingCard({ contest, platform }) {
+function OngoingCard({ contest }) {
   const [timeLeft, setTimeLeft] = useState('');
-  const cfg = PLATFORM_CONFIG[platform];
+  const cfg = PLATFORM_CONFIG[contest.platform] || PLATFORM_CONFIG['codeforces'];
 
   useEffect(() => {
     const tick = () => setTimeLeft(getTimeRemaining(contest.startTime, contest.duration));
@@ -82,7 +84,7 @@ function OngoingCard({ contest, platform }) {
             <span className="contest-live-badge__dot" />
             LIVE
           </span>
-          <span className={`badge badge--${platform}`}>
+          <span className={`badge badge--${contest.platform}`}>
             {cfg.icon} {cfg.label}
           </span>
           {useAuthStore.getState().user && (
@@ -122,9 +124,9 @@ function OngoingCard({ contest, platform }) {
 }
 
 
-function UpcomingCard({ contest, platform, isFirst }) {
+function UpcomingCard({ contest, isFirst }) {
   const [countdown, setCountdown] = useState('');
-  const cfg = PLATFORM_CONFIG[platform];
+  const cfg = PLATFORM_CONFIG[contest.platform] || PLATFORM_CONFIG['codeforces'];
 
   useEffect(() => {
     const tick = () => setCountdown(getCountdown(contest.startTime));
@@ -138,7 +140,7 @@ function UpcomingCard({ contest, platform, isFirst }) {
       <div className="contest-upcoming-card__content">
         <div className="contest-upcoming-card__header" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span className={`badge badge--${platform}`}>
+            <span className={`badge badge--${contest.platform}`}>
               {cfg.icon} {cfg.label}
             </span>
             {isFirst && <span className="contest-next-badge">NEXT UP</span>}
@@ -171,7 +173,7 @@ function UpcomingCard({ contest, platform, isFirst }) {
         <div className="contest-upcoming-card__countdown">
           <span className="contest-countdown">{countdown}</span>
         </div>
-        <CalendarButtons contest={{...contest, platform}} />
+        <CalendarButtons contest={{...contest, platform: contest.platform}} />
       </div>
     </div>
   );
@@ -186,14 +188,16 @@ export default function ContestsPage() {
   const [loading, setLoading] = useState(true);
   const [pastPage, setPastPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [platform, setPlatform] = useState('codeforces');
+  const [platform, setPlatform] = useState('all');
+  const [contestType, setContestType] = useState('');
   const [showPast, setShowPast] = useState(false);
 
-  const fetchContests = useCallback(async (plat, pPage, searchTerm) => {
+  const fetchContests = useCallback(async (plat, pPage, searchTerm, cType) => {
     setLoading(true);
     try {
       const params = { platform: plat, pastPage: pPage, pastLimit: 20 };
       if (searchTerm) params.search = searchTerm;
+      if (cType) params.type = cType;
       const res = await contestAPI.getCategorizedContests(params);
       const data = res.data;
       setOngoing(data.ongoing || []);
@@ -207,20 +211,20 @@ export default function ContestsPage() {
   }, []);
 
   useEffect(() => {
-    fetchContests(platform, pastPage, search);
-  }, [platform, pastPage, fetchContests]);
+    fetchContests(platform, pastPage, search, contestType);
+  }, [platform, pastPage, fetchContests, contestType]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPastPage(1);
-    fetchContests(platform, 1, search);
+    fetchContests(platform, 1, search, contestType);
   };
 
   const handlePlatformChange = (p) => {
     setPlatform(p);
     setPastPage(1);
     setSearch('');
-    setShowPast(false);
+    setContestType('');
   };
 
   const currentPlatform = PLATFORM_CONFIG[platform];
@@ -272,7 +276,7 @@ export default function ContestsPage() {
                 </div>
                 <div className="contest-live-grid">
                   {ongoing.map((c) => (
-                    <OngoingCard key={c._id} contest={c} platform={platform} />
+                    <OngoingCard key={c._id} contest={c} />
                   ))}
                 </div>
               </section>
@@ -290,7 +294,7 @@ export default function ContestsPage() {
                 </div>
                 <div className="contest-upcoming-grid">
                   {upcoming.map((c, i) => (
-                    <UpcomingCard key={c._id} contest={c} platform={platform} isFirst={i === 0} />
+                    <UpcomingCard key={c._id} contest={c} isFirst={i === 0} />
                   ))}
                 </div>
               </section>
@@ -334,15 +338,61 @@ export default function ContestsPage() {
 
               {showPast && (
                 <div className="contest-past-content" style={{ animation: 'slideUp 0.3s ease' }}>
-                  <form onSubmit={handleSearch} className="search-box" style={{ marginBottom: 'var(--space-md)' }}>
+                  <form onSubmit={handleSearch} className="search-box" style={{ marginBottom: 'var(--space-md)', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <input
                       id="past-contest-search"
                       type="text"
-                      placeholder={`🔍 Search ${currentPlatform.label} past contests...`}
+                      placeholder="🔍 Search contests..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
+                      style={{ flex: '1', minWidth: '200px' }}
                     />
-                    <button type="submit">Search</button>
+                    <CustomDropdown
+                      id="past-contest-platform-select"
+                      value={platform}
+                      onChange={(val) => handlePlatformChange(val)}
+                      options={[
+                        { value: 'all', label: 'All Platforms', icon: '🌐' },
+                        { value: 'codeforces', label: 'Codeforces', icon: '🟣' },
+                        { value: 'leetcode', label: 'LeetCode', icon: '🟡' },
+                        { value: 'codechef', label: 'CodeChef', icon: '🔵' },
+                      ]}
+                      minWidth="160px"
+                    />
+
+                    {platform === 'codeforces' && (
+                      <CustomDropdown
+                        id="past-contest-type-select"
+                        value={contestType}
+                        onChange={(val) => {
+                          setContestType(val);
+                          setPastPage(1);
+                        }}
+                        options={[
+                          { value: '', label: 'All Types' },
+                          { value: 'CF', label: 'CF' },
+                          { value: 'ICPC', label: 'ICPC' },
+                          { value: 'IOI', label: 'IOI' },
+                          { value: 'OTHER', label: 'Other' },
+                        ]}
+                        minWidth="130px"
+                      />
+                    )}
+                    <button type="submit" className="btn btn--primary">Search</button>
+                    {(search || contestType) && (
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        onClick={() => {
+                          setSearch('');
+                          setContestType('');
+                          setPastPage(1);
+                          fetchContests(platform, 1, '', '');
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
                   </form>
 
                   {past.length === 0 ? (
@@ -375,8 +425,8 @@ export default function ContestsPage() {
                                     )}
                                   </td>
                                   <td>
-                                    <span className={`badge badge--${platform}`}>
-                                      {currentPlatform.icon} {currentPlatform.label}
+                                    <span className={`badge badge--${c.platform}`}>
+                                      {PLATFORM_CONFIG[c.platform]?.icon} {PLATFORM_CONFIG[c.platform]?.label}
                                     </span>
                                   </td>
                                   <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>

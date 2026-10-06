@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { platformsAPI } from '../api';
+import { platformsAPI, authAPI } from '../api';
 import useAuthStore from '../store/authStore';
 
 const PLATFORMS = [
@@ -11,9 +11,12 @@ const PLATFORMS = [
 
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user);
+  const updateUser = useAuthStore((state) => state.updateUser);
   const checkAuth = useAuthStore((state) => state.checkAuth);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+
+  const fileInputRef = useRef(null);
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -29,6 +32,22 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editMode, setEditMode] = useState(false);
+
+  // Username edit state
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState(user?.username || '');
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [usernameMsg, setUsernameMsg] = useState({ error: '', success: '' });
+
+  // Avatar state
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarMsg, setAvatarMsg] = useState({ error: '', success: '' });
+
+  useEffect(() => {
+    if (user?.username) {
+      setUsernameInput(user.username);
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -50,6 +69,95 @@ export default function SettingsPage() {
     };
     fetchStatus();
   }, []);
+
+  const compressImage = (file, maxSize = 400, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxSize) { height = Math.round((height * maxSize) / width); width = maxSize; }
+        } else {
+          if (height > maxSize) { width = Math.round((width * maxSize) / height); height = maxSize; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleAvatarFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarMsg({ error: '', success: '' });
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setAvatarMsg({ error: 'Invalid file format. Please upload JPG, PNG, or WebP.', success: '' });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarMsg({ error: 'File size exceeds 5MB limit.', success: '' });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const compressedDataUrl = await compressImage(file);
+      const res = await authAPI.updateAvatar({ avatar: compressedDataUrl });
+      if (res.data?.user) {
+        updateUser(res.data.user);
+        await checkAuth();
+        setAvatarMsg({ error: '', success: 'Profile picture updated successfully!' });
+        setTimeout(() => setAvatarMsg((prev) => ({ ...prev, success: '' })), 4000);
+      }
+    } catch (err) {
+      setAvatarMsg({ error: err.message || 'Failed to upload profile picture.', success: '' });
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSaveUsername = async (e) => {
+    e.preventDefault();
+    setUsernameMsg({ error: '', success: '' });
+
+    const trimmed = usernameInput.trim();
+    if (!trimmed || trimmed.length < 3 || trimmed.length > 30) {
+      setUsernameMsg({ error: 'Username must be between 3 and 30 characters.', success: '' });
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setUsernameMsg({ error: 'Username may only contain letters, numbers, underscores, and hyphens.', success: '' });
+      return;
+    }
+
+    setSavingUsername(true);
+    try {
+      const res = await authAPI.updateUsername({ username: trimmed });
+      if (res.data?.user) {
+        updateUser(res.data.user);
+        await checkAuth();
+        setUsernameMsg({ error: '', success: 'Username updated successfully!' });
+        setEditingUsername(false);
+        setTimeout(() => setUsernameMsg((prev) => ({ ...prev, success: '' })), 4000);
+      }
+    } catch (err) {
+      setUsernameMsg({ error: err.message || 'Failed to update username.', success: '' });
+    } finally {
+      setSavingUsername(false);
+    }
+  };
 
   const hasAnyHandle = Object.values(original).some((h) => h && h.trim());
   const hasChanges = JSON.stringify(form) !== JSON.stringify(original);
@@ -114,60 +222,189 @@ export default function SettingsPage() {
             ⚙️ Settings
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Manage your platform handles and account preferences
+            Manage your profile, platform handles, and account preferences
           </p>
         </div>
 
+        {/* Profile Card with Avatar & Username */}
         <div className="card" style={{ padding: '24px 28px', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(108,92,231,0.2), rgba(168,85,247,0.1))',
-              border: '1px solid rgba(124,92,252,0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.5rem',
-              flexShrink: 0,
-            }}>
-              👤
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontFamily: "'Outfit', sans-serif",
-                fontSize: '1.15rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                marginBottom: '2px',
-              }}>
-                {user?.username || 'User'}
+          {avatarMsg.error && <div className="alert alert--error" style={{ marginBottom: '16px' }}>{avatarMsg.error}</div>}
+          {avatarMsg.success && <div className="alert alert--success" style={{ marginBottom: '16px' }}>{avatarMsg.success}</div>}
+          {usernameMsg.error && <div className="alert alert--error" style={{ marginBottom: '16px' }}>{usernameMsg.error}</div>}
+          {usernameMsg.success && <div className="alert alert--success" style={{ marginBottom: '16px' }}>{usernameMsg.success}</div>}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            {/* Avatar with Click-to-Upload */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div
+                style={{
+                  width: '68px',
+                  height: '68px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(108,92,231,0.2), rgba(168,85,247,0.1))',
+                  border: '2px solid rgba(124,92,252,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.8rem',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  position: 'relative',
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to change profile picture"
+              >
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  '👤'
+                )}
+
+                {uploadingAvatar && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.8rem',
+                    color: '#fff',
+                  }}>
+                    ⏳
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="btn btn--secondary btn--sm"
+                style={{
+                  position: 'absolute',
+                  bottom: '-6px',
+                  right: '-6px',
+                  padding: '4px 6px',
+                  fontSize: '0.65rem',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Change Avatar"
+              >
+                📷
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                style={{ display: 'none' }}
+                onChange={handleAvatarFileChange}
+              />
+            </div>
+
+            {/* Username / Email Section */}
+            <div style={{ flex: 1, minWidth: '220px' }}>
+              {!editingUsername ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: '1.2rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                  }}>
+                    {user?.username || 'User'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setUsernameInput(user?.username || '');
+                      setEditingUsername(true);
+                      setUsernameMsg({ error: '', success: '' });
+                    }}
+                    className="btn btn--sm"
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '0.75rem',
+                      background: 'transparent',
+                      border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      borderRadius: '4px',
+                    }}
+                    title="Edit username"
+                  >
+                    ✏️ Edit
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveUsername} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value)}
+                    style={{ padding: '4px 8px', fontSize: '0.9rem', maxWidth: '160px' }}
+                    placeholder="New username"
+                    maxLength={30}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn--primary btn--sm"
+                    disabled={savingUsername || !usernameInput.trim()}
+                    style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                  >
+                    {savingUsername ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    onClick={() => {
+                      setEditingUsername(false);
+                      setUsernameInput(user?.username || '');
+                    }}
+                    style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              )}
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                 {user?.email || ''}
               </div>
             </div>
-            <div style={{
-              background: connectedCount > 0
-                ? 'rgba(52, 211, 153, 0.1)'
-                : 'rgba(251, 191, 36, 0.1)',
-              border: `1px solid ${connectedCount > 0 ? 'rgba(52, 211, 153, 0.25)' : 'rgba(251, 191, 36, 0.25)'}`,
-              borderRadius: '20px',
-              padding: '6px 14px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: connectedCount > 0 ? '#34d399' : '#fbbf24',
-            }}>
-              {connectedCount}/3 Connected
+
+            {/* Connection badge & logout */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                background: connectedCount > 0
+                  ? 'rgba(52, 211, 153, 0.1)'
+                  : 'rgba(251, 191, 36, 0.1)',
+                border: `1px solid ${connectedCount > 0 ? 'rgba(52, 211, 153, 0.25)' : 'rgba(251, 191, 36, 0.25)'}`,
+                borderRadius: '20px',
+                padding: '6px 14px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: connectedCount > 0 ? '#34d399' : '#fbbf24',
+              }}>
+                {connectedCount}/3 Connected
+              </div>
+              <button
+                onClick={handleLogout}
+                className="btn btn--outline btn--sm"
+                style={{ color: 'var(--accent-red)', borderColor: 'rgba(248, 113, 113, 0.3)' }}
+              >
+                Logout
+              </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="btn btn--outline btn--sm"
-              style={{ color: 'var(--accent-red)', borderColor: 'rgba(248, 113, 113, 0.3)', marginLeft: '8px' }}
-            >
-              Logout
-            </button>
           </div>
         </div>
 

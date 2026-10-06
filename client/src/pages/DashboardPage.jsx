@@ -130,8 +130,12 @@ export default function DashboardPage() {
       <div className="container">
         <div className="card" style={{ marginBottom: 'var(--space-xl)', padding: '28px 32px' }}>
           <div className="profile-hero" style={{ marginBottom: 0 }}>
-            <div className="profile-avatar">
-              👤
+            <div className="profile-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                '👤'
+              )}
             </div>
             <div className="profile-info">
               <h1>{user?.username || 'User'}</h1>

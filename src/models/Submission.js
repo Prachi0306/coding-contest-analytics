@@ -1,8 +1,12 @@
 const mongoose = require('mongoose');
 
-
 const submissionSchema = new mongoose.Schema(
   {
+    externalSubmissionId: {
+      type: String,
+      required: false,
+      sparse: true, // Some manual submissions might not have one, or we can enforce it.
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -19,19 +23,20 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Problem ID is required'],
       trim: true,
+      index: true,
     },
-    status: {
+    verdict: {
       type: String,
-      enum: ['solved', 'unsolved'],
-      default: 'unsolved',
+      default: 'OK', 
+      trim: true,
     },
-    solvedDuringContest: {
+    isDuringContest: {
       type: Boolean,
       default: false,
     },
-    solvedAt: {
+    timestamp: {
       type: Date,
-      default: null,
+      default: Date.now,
     },
   },
   {
@@ -39,7 +44,8 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
-submissionSchema.index({ userId: 1, contestId: 1, problemId: 1 }, { unique: true });
+submissionSchema.index({ externalSubmissionId: 1, contestId: 1 }, { unique: true, partialFilterExpression: { externalSubmissionId: { $exists: true, $type: "string" } } });
+submissionSchema.index({ userId: 1, contestId: 1, problemId: 1 });
 
 const Submission = mongoose.model('Submission', submissionSchema);
 

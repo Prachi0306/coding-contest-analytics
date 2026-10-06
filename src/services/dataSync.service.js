@@ -89,7 +89,7 @@ class DataSyncService {
           platform: 'leetcode',
           contestId: c.titleSlug,
           name: c.title,
-          type: 'OTHER',
+          type: this._mapLeetCodeContestType(c.title, c.titleSlug),
           phase,
           startTime,
           duration: c.duration,
@@ -120,7 +120,7 @@ class DataSyncService {
           platform: 'codechef',
           contestId: c.contest_code,
           name: c.contest_name,
-          type: 'OTHER',
+          type: this._mapCodeChefContestType(c.contest_name, c.contest_code),
           phase,
           startTime: new Date(c.contest_start_date_iso),
           duration: parseInt(c.contest_duration, 10) * 60,
@@ -329,6 +329,38 @@ class DataSyncService {
   _mapContestType(cfType) {
     const typeMap = { CF: 'CF', IOI: 'IOI', ICPC: 'ICPC' };
     return typeMap[cfType] || 'OTHER';
+  }
+
+  _mapLeetCodeContestType(title = '', titleSlug = '') {
+    const text = `${title} ${titleSlug}`.toLowerCase();
+    if (text.includes('biweekly')) return 'Biweekly Contest';
+    if (text.includes('weekly')) return 'Weekly Contest';
+    return 'OTHER';
+  }
+
+  _mapCodeChefContestType(contestName = '', contestCode = '') {
+    const nameLower = (contestName || '').toLowerCase();
+    const codeUpper = (contestCode || '').toUpperCase();
+
+    if (nameLower.includes('starters') || codeUpper.startsWith('START')) {
+      return 'Starters';
+    }
+    if (nameLower.includes('placement prep') || codeUpper.startsWith('PLACEPREP')) {
+      return 'Placement Prep';
+    }
+    if (nameLower.includes('monday munch') || nameLower.includes('dsa challenge') || codeUpper.startsWith('DSAMONDAY')) {
+      return 'DSA Challenge';
+    }
+    if (nameLower.includes('cook-off') || codeUpper.startsWith('COOK')) {
+      return 'Cook-Off';
+    }
+    if (nameLower.includes('lunchtime') || codeUpper.startsWith('LTIME')) {
+      return 'Lunchtime';
+    }
+    if (nameLower.includes('long challenge')) {
+      return 'Long Challenge';
+    }
+    return 'OTHER';
   }
 
 

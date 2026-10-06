@@ -125,11 +125,13 @@ const Contest = require('../models/Contest');
     }
   };
 
+  const cronService = require('../services/cron.service');
+
   const contestWorker = new Worker(
     QUEUE_NAMES.SYNC_CONTESTS,
     async (job) => {
       logger.info(`[Worker] Processing contest sync job: ${job.id}`, { data: job.data });
-      const result = await dataSyncService.syncCodeforcesContests();
+      const result = await cronService.syncContests();
       logger.info(`[Worker] Contest sync job complete: ${job.id}`, result);
       return result;
     },

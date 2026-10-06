@@ -1,4 +1,4 @@
-const dataSyncService = require('../services/dataSync.service');
+const cronService = require('../services/cron.service');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHandler');
 
@@ -6,7 +6,7 @@ const { sendSuccess } = require('../utils/responseHandler');
 
 
 const syncContests = asyncHandler(async (req, res) => {
-  const result = await dataSyncService.syncCodeforcesContests();
+  const result = await cronService.syncContests();
 
   return sendSuccess(res, 200, 'Contest sync complete', result);
 });

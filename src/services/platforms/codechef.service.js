@@ -195,4 +195,49 @@ async function fetchProfile(handle) {
   }
 }
 
-module.exports = { fetchProfile, PLATFORM };
+async function getContestDetailsAndProblems(contestId) {
+  try {
+    const data = await _requestWithRetry(`https://www.codechef.com/api/contests/${contestId}`);
+    if (data.status !== 'success' || !data.code) {
+      throw new Error('CodeChef contest not found');
+    }
+
+    const contest = {
+      platform: PLATFORM,
+      contestId: data.code,
+      name: data.name,
+      startTime: data.startDate ? new Date(data.startDate).toISOString() : new Date().toISOString(),
+      duration: data.duration ? parseInt(data.duration, 10) * 60 : 0,
+    };
+
+    const problems = [];
+    if (data.problems) {
+      for (const [code, details] of Object.entries(data.problems)) {
+        problems.push({
+          contestId: data.code,
+          index: code,
+          name: details.name || code,
+          rating: null,
+          tags: [],
+        });
+      }
+    }
+
+    if (problems.length === 0) {
+      throw new Error('No problems found for this CodeChef contest');
+    }
+
+    return { contest, problems };
+  } catch (error) {
+    logger.error(`CodeChef getContestDetailsAndProblems error for ${contestId}`, { error: error.message });
+    throw error;
+  }
+}
+
+async function getUserContestSubmissions(contestId, handle) {
+  // CodeChef's submissions API is heavily protected by Cloudflare.
+  // We cannot reliably fetch contest-specific submissions from the backend.
+  throw new Error('CodeChef contest submissions API is protected by Cloudflare and cannot be fetched server-side.');
+}
+
+module.exports = { fetchProfile, getContestDetailsAndProblems, getUserContestSubmissions, PLATFORM };

@@ -25,3 +25,10 @@ build/
 
 # Coverage
 coverage/
+
+# Temporary files
+scratch/
+temp_*
+
+# Client build (tracked separately)
+client/dist/

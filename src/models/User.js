@@ -98,6 +98,12 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    avatar: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -114,17 +120,42 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      select: false,
+    },
+    verificationTokenExpiresAt: {
+      type: Date,
+      select: false,
+    },
+    verificationAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    lastVerificationResend: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,
     toJSON: {
+      virtuals: true,
       transform(doc, ret) {
         delete ret.password;
         delete ret.__v;
+        delete ret._id; // optional: remove _id since id is present, but I'll keep it just in case
         return ret;
       },
     },
     toObject: {
+      virtuals: true,
       transform(doc, ret) {
         delete ret.password;
         delete ret.__v;
@@ -165,6 +196,7 @@ userSchema.pre('save', async function (next) {
 
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password || !candidatePassword) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
 
@@ -180,6 +212,7 @@ userSchema.methods.toPublicProfile = function () {
   return {
     id: this._id,
     username: this.username,
+    avatar: this.avatar || '',
     handles: this.handles,
     platformHandles: this.platformHandles,
     createdAt: this.createdAt,
@@ -199,10 +232,12 @@ userSchema.statics.findByUsername = function (username) {
 
 
 userSchema.statics.findByCredentials = function (identifier) {
+  if (!identifier) return null;
+  const str = String(identifier);
   return this.findOne({
     $or: [
-      { email: identifier.toLowerCase() },
-      { username: identifier },
+      { email: str.toLowerCase() },
+      { username: str },
     ],
   }).select('+password');
 };

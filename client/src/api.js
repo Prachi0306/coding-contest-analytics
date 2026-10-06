@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 60000,
 });
@@ -21,7 +23,7 @@ api.interceptors.response.use(
       error.response?.data?.message || error.message || 'Something went wrong';
     const status = error.response?.status;
 
-    if (status === 401) {
+    if (status === 401 && !window.location.pathname.includes('/login') && !error.config?.url?.includes('/login')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -36,6 +38,10 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   getProfile: () => api.get('/auth/me'),
   changePassword: (data) => api.put('/auth/change-password', data),
+  updateUsername: (data) => api.put('/auth/username', data),
+  updateAvatar: (data) => api.put('/auth/avatar', data),
+  verifyEmail: (data) => api.post('/auth/verify-email', data),
+  resendVerification: (data) => api.post('/auth/resend-verification', data),
 };
 
 export const platformsAPI = {
@@ -83,7 +89,8 @@ export const upsolveAPI = {
     api.put(`/upsolve/${contestId}/${problemId}`, data),
   getStats: () => api.get('/upsolve/stats'),
   getContests: () => api.get('/upsolve/contests'),
-  syncContest: (contestId) => api.post(`/upsolve/sync/${contestId}`),
+  syncContest: (contestId, platform = 'codeforces') =>
+    api.post(`/upsolve/sync/${contestId}`, { platform }, { params: { platform } }),
 };
 
 export default api;

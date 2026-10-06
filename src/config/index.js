@@ -16,15 +16,15 @@ const config = {
 
   codeforcesApiBase: process.env.CODEFORCES_API_BASE || 'https://codeforces.com/api',
 
-  logLevel: process.env.LOG_LEVEL || 'info',
+  logLevel: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
 
   corsOrigins: process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',')
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
     : ['http://localhost:5173', 'http://localhost:3000'],
 };
 
 if (config.env === 'production') {
-  const required = ['MONGODB_URI', 'JWT_SECRET'];
+  const required = ['MONGODB_URI', 'JWT_SECRET', 'CORS_ORIGINS'];
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);

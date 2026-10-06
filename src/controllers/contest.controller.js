@@ -9,20 +9,26 @@ const AppError = require('../utils/AppError');
 
 const getCategorizedContests = asyncHandler(async (req, res) => {
   const {
-    platform = 'codeforces',
+    platform = 'all',
     pastPage = 1,
     pastLimit = 20,
     search,
+    type,
   } = req.query;
 
   const now = new Date();
-  const platformLower = platform.toLowerCase();
+  const platformLower = (platform || 'all').toLowerCase();
   const pastPageNum = Math.max(1, parseInt(pastPage, 10) || 1);
   const pastLimitNum = Math.min(100, Math.max(1, parseInt(pastLimit, 10) || 20));
   const pastSkip = (pastPageNum - 1) * pastLimitNum;
 
+  const platformFilter = platformLower === 'all' ? {} : { platform: platformLower };
+  const typeFilter = type ? { type } : {};
+
+  const baseQuery = { ...platformFilter, ...typeFilter };
+
   const ongoingQuery = {
-    platform: platformLower,
+    ...baseQuery,
     $or: [
       { phase: { $in: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST'] } },
       {
@@ -39,13 +45,13 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
   };
 
   const upcomingQuery = {
-    platform: platformLower,
+    ...baseQuery,
     startTime: { $gt: now },
     phase: { $nin: ['CODING', 'PENDING_SYSTEM_TEST', 'SYSTEM_TEST', 'FINISHED'] },
   };
 
   const pastQuery = {
-    platform: platformLower,
+    ...baseQuery,
     $or: [
       { phase: 'FINISHED' },
       {
@@ -60,8 +66,19 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
       },
     ],
   };
-  if (search) {
-    pastQuery.$text = { $search: search };
+  
+  if (search && search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchRegex = { $regex: escaped, $options: 'i' };
+    pastQuery.$and = [
+      {
+        $or: [
+          { name: searchRegex },
+          { contestId: searchRegex },
+          { platform: searchRegex },
+        ],
+      },
+    ];
   }
 
   const [ongoing, upcoming, pastContests, pastTotal] = await Promise.all([
@@ -73,10 +90,11 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
 
   let attendedContestIds = new Set();
   if (req.user) {
-    const userStats = await UserStats.find({
-      userId: req.user.id,
-      platform: platformLower,
-    }).select('contestId').lean();
+    const statsQuery = { userId: req.user.id };
+    if (platformLower !== 'all') {
+      statsQuery.platform = platformLower;
+    }
+    const userStats = await UserStats.find(statsQuery).select('contestId').lean();
 
     attendedContestIds = new Set(userStats.map((s) => String(s.contestId)));
   }
@@ -106,19 +124,32 @@ const getCategorizedContests = asyncHandler(async (req, res) => {
 
 const getContests = asyncHandler(async (req, res) => {
   const {
-    platform = 'codeforces',
+    platform = 'all',
     page = 1,
     limit = 20,
     search,
+    type,
   } = req.query;
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const query = { platform: platform.toLowerCase() };
-  if (search) {
-    query.$text = { $search: search };
+  const query = {};
+  if (platform && platform.toLowerCase() !== 'all') {
+    query.platform = platform.toLowerCase();
+  }
+  if (type) {
+    query.type = type;
+  }
+  if (search && search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchRegex = { $regex: escaped, $options: 'i' };
+    query.$or = [
+      { name: searchRegex },
+      { contestId: searchRegex },
+      { platform: searchRegex },
+    ];
   }
 
   const [contests, total] = await Promise.all([

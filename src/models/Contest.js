@@ -33,10 +33,7 @@ const contestSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: {
-        values: CONTEST_TYPES,
-        message: 'Contest type must be one of: {VALUE}',
-      },
+      trim: true,
       default: 'OTHER',
     },
 

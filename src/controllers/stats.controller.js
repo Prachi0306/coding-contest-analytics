@@ -79,7 +79,7 @@ const getLatestRating = asyncHandler(async (req, res) => {
 
 const getCodeforcesProfile = asyncHandler(async (req, res) => {
   const user = await userRepository.findById(req.user.id);
-  const handle = user?.handles?.codeforces;
+  const handle = user?.platformHandles?.codeforces || user?.handles?.codeforces;
 
   if (!handle) {
     throw AppError.badRequest(

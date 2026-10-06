@@ -30,8 +30,9 @@ const isRedisAvailable = async () => {
 
 const createRedisConnection = (role = 'default') => {
   const connection = new IORedis(config.redisUrl, {
-    maxRetriesPerRequest: null,
+    maxRetriesPerRequest: 3,
     enableReadyCheck: false,
+    connectTimeout: 5000,
     retryStrategy: (times) => {
       if (times > 5) {
         logger.error(`Redis ${role}: max retries reached, giving up`);
