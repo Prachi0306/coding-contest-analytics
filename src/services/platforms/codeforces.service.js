@@ -87,4 +87,17 @@ async function fetchProfile(handle) {
   }
 }
 
-module.exports = { fetchProfile, PLATFORM };
+async function getContestDetailsAndProblems(contestId) {
+  return codeforcesService.getContestDetailsAndProblems(contestId);
+}
+
+async function getUserContestSubmissions(contestId, handle) {
+  return codeforcesService.getUserContestSubmissions(contestId, handle);
+}
+
+module.exports = { 
+  fetchProfile, 
+  getContestDetailsAndProblems, 
+  getUserContestSubmissions, 
+  PLATFORM 
+};
