@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHandler');
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
+const cacheMiddleware = require('../middleware/cache.middleware');
 
 
 
@@ -61,6 +62,8 @@ const connectPlatforms = asyncHandler(async (req, res) => {
   logger.info(`Platform handles updated for user ${req.user.id}`, {
     platforms: Object.keys(updates),
   });
+
+  await cacheMiddleware.clearUserCache(req.user.id);
 
   return sendSuccess(res, 200, 'Platform handles updated', {
     platformHandles: updatedUser.platformHandles,

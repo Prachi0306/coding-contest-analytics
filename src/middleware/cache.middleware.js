@@ -104,4 +104,33 @@ const cacheMiddleware = (ttl = 300) => {
   };
 };
 
+cacheMiddleware.clearUserCache = async (userId, pathOrPattern = null) => {
+  for (const [k] of memoryCache) {
+    if (k.startsWith(`cache:user:${userId}:`)) {
+      if (!pathOrPattern || k.includes(pathOrPattern)) {
+        memoryCache.delete(k);
+      }
+    }
+  }
+
+  try {
+    let redis = null;
+    try {
+      redis = getRedisConnection();
+    } catch { /* ignore */ }
+    
+    if (redis && redis.status === 'ready') {
+      const pattern = pathOrPattern 
+        ? `cache:user:${userId}:*${pathOrPattern}*`
+        : `cache:user:${userId}:*`;
+      const keys = await redis.keys(pattern);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    }
+  } catch (err) {
+    logger.error(`Error clearing user cache: ${err.message}`);
+  }
+};
+
 module.exports = cacheMiddleware;

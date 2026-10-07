@@ -14,6 +14,7 @@ const syncContests = asyncHandler(async (req, res) => {
 const userRepository = require('../repositories/user.repository');
 const { addPlatformSyncJob } = require('../jobs/queues');
 const AppError = require('../utils/AppError');
+const cacheMiddleware = require('../middleware/cache.middleware');
 
 
 const syncMyRatings = asyncHandler(async (req, res) => {
@@ -67,6 +68,8 @@ const syncMyRatings = asyncHandler(async (req, res) => {
   if (queuedPlatforms.length === 0) {
     throw AppError.badRequest('No platform handles configured to sync.');
   }
+
+  await cacheMiddleware.clearUserCache(userId);
 
   return sendSuccess(res, 202, 'Data sync jobs enqueued successfully', {
     queuedPlatforms,
