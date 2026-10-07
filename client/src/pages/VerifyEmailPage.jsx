@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { authAPI } from '../api';
+import useAuthStore from '../store/authStore';
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email');
   const token = searchParams.get('token');
   const navigate = useNavigate();
+  const verifyEmailAction = useAuthStore(state => state.verifyEmail);
 
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
@@ -20,9 +21,10 @@ export default function VerifyEmailPage() {
 
     const verify = async () => {
       try {
-        const res = await authAPI.verifyEmail({ email, token });
+        const res = await verifyEmailAction({ email, token });
         setStatus('success');
-        setMessage(res.message || 'Email verified successfully! You can now log in.');
+        setMessage(res.message || 'Email verified successfully! Redirecting to dashboard...');
+        setTimeout(() => navigate('/dashboard'), 2000);
       } catch (err) {
         setStatus('error');
         setMessage(err.message || 'Verification failed. The link may have expired or is invalid.');
@@ -30,7 +32,7 @@ export default function VerifyEmailPage() {
     };
 
     verify();
-  }, [email, token]);
+  }, [email, token, navigate, verifyEmailAction]);
 
   return (
     <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
@@ -48,7 +50,7 @@ export default function VerifyEmailPage() {
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>✅</div>
             <h2>Verification Successful</h2>
             <p className="text-muted" style={{ marginBottom: '24px' }}>{message}</p>
-            <Link to="/login" className="btn btn--primary" style={{ width: '100%' }}>Go to Login</Link>
+            <Link to="/dashboard" className="btn btn--primary" style={{ width: '100%' }}>Go to Dashboard</Link>
           </>
         )}
 

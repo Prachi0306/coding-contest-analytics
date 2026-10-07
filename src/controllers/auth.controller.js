@@ -26,7 +26,10 @@ const register = asyncHandler(async (req, res) => {
 const verifyEmail = asyncHandler(async (req, res) => {
   const { email, token } = req.body;
   const result = await authService.verifyEmail({ email, token });
-  return sendSuccess(res, 200, result.message);
+  return sendSuccess(res, 200, result.message, {
+    user: result.user,
+    tokens: result.tokens,
+  });
 });
 
 const resendVerification = asyncHandler(async (req, res) => {

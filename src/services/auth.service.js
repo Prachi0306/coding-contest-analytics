@@ -105,10 +105,15 @@ class AuthService {
     user.verificationAttempts = 0;
     await user.save();
 
+    await userRepository.updateLastLogin(user._id);
+    const tokens = generateAuthTokens(user);
+
     logger.info(`User email verified: ${user.email}`);
 
     return {
       message: 'Email verified successfully',
+      user: user.toJSON(),
+      tokens,
     };
   }
 

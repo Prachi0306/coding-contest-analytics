@@ -55,6 +55,17 @@ const useAuthStore = create((set) => ({
     return u;
   },
 
+  verifyEmail: async (data) => {
+    const res = await authAPI.verifyEmail(data);
+    const { user: u, tokens } = res.data;
+    if (u && tokens) {
+      localStorage.setItem('token', tokens.accessToken);
+      localStorage.setItem('user', JSON.stringify(u));
+      set({ user: u });
+    }
+    return res.data;
+  },
+
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
